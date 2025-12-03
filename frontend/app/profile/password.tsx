@@ -1,7 +1,5 @@
 import CustomButton from '@/components/ui/custom-button';
 import PasswordGuide from '@/components/ui/password-guide';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { ChevronLeft, Eye, EyeOff } from 'lucide-react-native';
@@ -18,11 +16,10 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { updatePassword } from '@/services/user-service';
 
 export default function ChangePasswordScreen() {
   const insets = useSafeAreaInsets();
-  const colorScheme = useColorScheme() || 'light';
-  const colors = Colors[colorScheme];
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -33,6 +30,7 @@ export default function ChangePasswordScreen() {
     new: false,
     confirm: false,
   });
+  const [loading, setLoading] = useState(false);
 
   const handleGoBack = () => {
     router.back();
@@ -65,7 +63,7 @@ export default function ChangePasswordScreen() {
     );
   };
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     if (!isFormValid()) {
       Alert.alert(
         'Error',
@@ -74,14 +72,22 @@ export default function ChangePasswordScreen() {
       return;
     }
 
-    // TODO: Implement password change logic with backend
-    console.log('Changing password...');
-    Alert.alert('Success', 'Your password has been changed successfully!', [
-      {
-        text: 'OK',
-        onPress: () => router.back(),
-      },
-    ]);
+    try {
+      setLoading(true);
+      await updatePassword(currentPassword, newPassword);
+      console.log('Password changed successfully');
+      Alert.alert('Success', 'Your password has been changed successfully!', [
+        {
+          text: 'OK',
+          onPress: () => router.back(),
+        },
+      ]);
+    } catch (error) {
+      console.error('Failed to change password:', error);
+      Alert.alert('Error', 'Failed to change password. Please check your current password and try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -261,12 +267,12 @@ export default function ChangePasswordScreen() {
             }}
           >
             <CustomButton
-              title="Change Password"
+              title={loading ? "Changing..." : "Change Password"}
               onPress={handleChangePassword}
               variant={isFormValid() ? 'gradient-accent' : 'primary'}
               size="lg"
               width="full"
-              disabled={!isFormValid()}
+              disabled={!isFormValid() || loading}
             />
           </View>
         </KeyboardAvoidingView>

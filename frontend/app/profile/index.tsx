@@ -1,7 +1,5 @@
 import ChangeProfileSheet from '@/components/profile/change-profile-sheet';
 import { Avatar } from '@/components/ui/avatar';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import {
   BottomSheetModal,
   BottomSheetModalProvider,
@@ -15,7 +13,7 @@ import {
   Lock,
   Logs,
 } from 'lucide-react-native';
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   Platform,
   ScrollView,
@@ -25,21 +23,42 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getProfile, UserProfile } from '@/services/user-service';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  const colorScheme = useColorScheme() || 'light';
-  const colors = Colors[colorScheme];
   const bottomSheetRef = useRef<BottomSheetModal>(null);
 
   // User data state
-  const [userData, setUserData] = useState({
-    firstName: 'Juan',
-    lastName: 'Dela Cruz',
-    email: 'juan.delacruz@email.com',
-    phone: '+63 912 345 6789',
-    lastPasswordChange: 'September 15, 2023',
-  });
+  const [userData, setUserData] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Load user profile on mount
+  useEffect(() => {
+    loadUserProfile();
+  }, []);
+
+  const loadUserProfile = async () => {
+    try {
+      setLoading(true);
+      const profile = await getProfile();
+      setUserData(profile);
+    } catch (error) {
+      console.error('Failed to load user profile:', error);
+      // Keep mock data as fallback
+      setUserData({
+        id: '1',
+        firstName: 'Juan',
+        lastName: 'Dela Cruz',
+        email: 'juan.delacruz@email.com',
+        phone: '+63 912 345 6789',
+        lastPasswordChange: 'September 15, 2023',
+        role: 'focalPerson',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleGoBack = () => {
     router.back();
@@ -66,6 +85,7 @@ export default function ProfileScreen() {
   };
 
   const handleEditName = () => {
+    if (!userData) return;
     router.push({
       pathname: '/profile/first-and-last-name',
       params: {
@@ -76,6 +96,7 @@ export default function ProfileScreen() {
   };
 
   const handleEditPhone = () => {
+    if (!userData) return;
     router.push({
       pathname: '/profile/phone-number',
       params: {
@@ -85,6 +106,7 @@ export default function ProfileScreen() {
   };
 
   const handleEditEmail = () => {
+    if (!userData) return;
     router.push({
       pathname: '/profile/email',
       params: {
@@ -167,18 +189,26 @@ export default function ProfileScreen() {
               </View>
 
               <View className="items-center mb-8">
-                <TouchableOpacity
-                  onPress={handleAvatarPress}
-                  activeOpacity={0.8}
-                >
-                  <Avatar
-                    size="xl"
-                    imageSource={require('@/assets/images/sample-profile-picture.jpg')}
-                  />
-                  <View className="bg-default-primary absolute bottom-0 right-0 w-10 h-10 rounded-full items-center justify-center">
-                    <Camera size={20} color="white" />
-                  </View>
-                </TouchableOpacity>
+                {loading ? (
+                  <View className="w-24 h-24 bg-gray-600 rounded-full animate-pulse" />
+                ) : (
+                  <TouchableOpacity
+                    onPress={handleAvatarPress}
+                    activeOpacity={0.8}
+                  >
+                    <Avatar
+                      size="xl"
+                      imageSource={
+                        userData?.photo
+                          ? { uri: userData.photo }
+                          : require('@/assets/images/sample-profile-picture.jpg')
+                      }
+                    />
+                    <View className="bg-default-primary absolute bottom-0 right-0 w-10 h-10 rounded-full items-center justify-center">
+                      <Camera size={20} color="white" />
+                    </View>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
 
@@ -200,7 +230,7 @@ export default function ProfileScreen() {
                       Name
                     </Text>
                     <Text className="text-gray-50 text-base font-geist-medium">
-                      {userData.firstName} {userData.lastName}
+                      {userData ? `${userData.firstName} ${userData.lastName}` : 'Loading...'}
                     </Text>
                   </View>
                   <ChevronRight size={20} color="#9CA3AF" />
@@ -219,7 +249,7 @@ export default function ProfileScreen() {
                       Phone Number
                     </Text>
                     <Text className="text-gray-50 text-base font-geist-medium">
-                      {userData.phone}
+                      {userData?.phone || 'Loading...'}
                     </Text>
                   </View>
                   <ChevronRight size={20} color="#9CA3AF" />
@@ -238,7 +268,7 @@ export default function ProfileScreen() {
                       Email
                     </Text>
                     <Text className="text-gray-50 text-base font-geist-medium">
-                      {userData.email}
+                      {userData?.email || 'Loading...'}
                     </Text>
                   </View>
                   <ChevronRight size={20} color="#9CA3AF" />
@@ -266,7 +296,7 @@ export default function ProfileScreen() {
                       Password
                     </Text>
                     <Text className="text-gray-400 text-xs mt-1 font-geist-regular">
-                      Last changed: {userData.lastPasswordChange}
+                      Last changed: {userData?.lastPasswordChange || 'Unknown'}
                     </Text>
                   </View>
                   <ChevronRight size={20} color="#9CA3AF" />
@@ -287,7 +317,7 @@ export default function ProfileScreen() {
                       Logs
                     </Text>
                     <Text className="text-gray-400 text-xs mt-1 font-geist-regular">
-                      Last action: {userData.lastPasswordChange}
+                      Last action: {userData?.lastPasswordChange || 'Unknown'}
                     </Text>
                   </View>
                   <ChevronRight size={20} color="#9CA3AF" />
