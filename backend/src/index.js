@@ -34,6 +34,10 @@ app.use(
       "http://localhost:5173",
       "https://resqwave.vercel.app",
       "https://resqwave-production.up.railway.app",
+      "exp://192.168.100.109:8081",
+      "http://192.168.100.109:8081",
+      "http://localhost:8081",
+      "exp://localhost:8081",
     ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
@@ -91,6 +95,10 @@ AppDataSource.initialize()
       origin: [
         "http://localhost:5173",
         "https://resqwave.vercel.app", // Add this
+        "exp://192.168.100.109:8081",
+        "http://192.168.100.109:8081",
+        "http://localhost:8081",
+        "exp://localhost:8081",
       ],
       credentials: true,
     });

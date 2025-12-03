@@ -16,6 +16,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { updateProfile } from '@/services/user-service';
 
 export default function EditNameScreen() {
   const insets = useSafeAreaInsets();
@@ -31,6 +32,7 @@ export default function EditNameScreen() {
     firstName: false,
     lastName: false,
   });
+  const [loading, setLoading] = useState(false);
 
   const handleGoBack = () => {
     router.back();
@@ -38,16 +40,19 @@ export default function EditNameScreen() {
 
   const isFormValid = firstName.trim().length > 0 && lastName.trim().length > 0;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (isFormValid) {
-      // TODO: Update user data in backend
-      console.log('Saving name:', { firstName, lastName });
-
-      // Navigate back with updated data
-      router.back();
-
-      // In a real app, you would update the parent component's state
-      // or use a state management solution like Redux/Context
+      try {
+        setLoading(true);
+        await updateProfile({ firstName, lastName });
+        console.log('Name updated successfully:', { firstName, lastName });
+        router.back();
+      } catch (error) {
+        console.error('Failed to update name:', error);
+        // You could show an error message to the user here
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -179,12 +184,12 @@ export default function EditNameScreen() {
             }}
           >
             <CustomButton
-              title="Save Changes"
+              title={loading ? "Saving..." : "Save Changes"}
               onPress={handleSave}
               variant={isFormValid ? 'gradient-accent' : 'primary'}
               size="lg"
               width="full"
-              disabled={!isFormValid}
+              disabled={!isFormValid || loading}
             />
           </View>
         </KeyboardAvoidingView>
