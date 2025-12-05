@@ -10,41 +10,125 @@ const lru = new LRUCache({
 let hits = 0;
 let misses = 0;
 
+// Circuit breaker state
+let circuitOpen = false;
+let failureCount = 0;
+let lastFailureTime = 0;
+const FAILURE_THRESHOLD = 5;
+const RECOVERY_TIMEOUT = 60000; // 1 minute
+
+function checkCircuitBreaker() {
+    if (circuitOpen) {
+        if (Date.now() - lastFailureTime > RECOVERY_TIMEOUT) {
+            circuitOpen = false;
+            failureCount = 0;
+            console.log("Redis circuit breaker closed");
+        } else {
+            return false; // Circuit still open
+        }
+    }
+    return true;
+}
+
+function recordFailure() {
+    failureCount++;
+    lastFailureTime = Date.now();
+    if (failureCount >= FAILURE_THRESHOLD) {
+        circuitOpen = true;
+        console.log("Redis circuit breaker opened");
+    }
+}
+
+function recordSuccess() {
+    if (failureCount > 0) {
+        failureCount = Math.max(0, failureCount - 1);
+    }
+}
+
 async function getCache(key) {
+  // Check LRU cache first
   const v = lru.get(key);
   if (v !== undefined) {
     console.log("CACHE HIT:", key);
     return v;
   }
-  const raw = await redis.get(key);
-  if (!raw) {
-    console.log("CACHE MISS:", key);
+
+  // Check circuit breaker before Redis call
+  if (!checkCircuitBreaker()) {
+    console.log("CACHE MISS (circuit open):", key);
     return null;
   }
-  console.log("CACHE HIT (redis):", key);
-  const parsed = JSON.parse(raw);
-  lru.set(key, parsed);
-  return parsed;
+
+  try {
+    const raw = await redis.get(key);
+    if (!raw) {
+      console.log("CACHE MISS:", key);
+      recordSuccess();
+      return null;
+    }
+    console.log("CACHE HIT (redis):", key);
+    const parsed = JSON.parse(raw);
+    lru.set(key, parsed);
+    recordSuccess();
+    return parsed;
+  } catch (error) {
+    console.error("Cache get error:", error);
+    recordFailure();
+    return null;
+  }
 }
 
 async function setCache(key, value, ttl = 60) {
   console.log("CACHE SET:", key);
   lru.set(key, value, { ttl: ttl * 1000 });
-  await redis.set(key, JSON.stringify(value), "EX", ttl);
+
+  // Check circuit breaker before Redis call
+  if (!checkCircuitBreaker()) {
+    console.log("CACHE SET (circuit open):", key);
+    return;
+  }
+
+  try {
+    await redis.set(key, JSON.stringify(value), "EX", ttl);
+    recordSuccess();
+  } catch (error) {
+    console.error("Cache set error:", error);
+    recordFailure();
+  }
 }
 
 async function deleteCache(patternOrKey) {
+    // Always delete from LRU cache
     if (!patternOrKey.includes("*")) {
         lru.delete(patternOrKey);
-        await redis.del(patternOrKey);
+    } else {
+        // For patterns, we can't easily delete from LRU without scanning
+        // This is acceptable since LRU cache is small and will expire naturally
+    }
+
+    // Check circuit breaker before Redis call
+    if (!checkCircuitBreaker()) {
+        console.log("CACHE DELETE (circuit open):", patternOrKey);
         return;
     }
-    const stream = redis.scanStream({watch: patternOrKey, count: 100});
-    for await (const keys of stream) {
-        if (keys.length) {
-            keys.forEach(k => lru.delete(k));
-            await redis.del(keys);
+
+    try {
+        if (!patternOrKey.includes("*")) {
+            await redis.del(patternOrKey);
+            recordSuccess();
+            return;
         }
+        const stream = redis.scanStream({watch: patternOrKey, count: 100});
+        for await (const keys of stream) {
+            if (keys.length) {
+                keys.forEach(k => lru.delete(k));
+                await redis.del(keys);
+            }
+        }
+        recordSuccess();
+    } catch (error) {
+        console.error("Cache delete error:", error);
+        recordFailure();
     }
 }
 

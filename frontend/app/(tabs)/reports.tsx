@@ -1,5 +1,6 @@
 import { ReportCardContainer } from '@/components/reports/report-card-container';
 import { Dropdown } from '@/components/ui/dropdown';
+import { PDFViewer } from '@/components/pdf-viewer';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChevronDown, Search } from 'lucide-react-native';
 import React, { useState } from 'react';
@@ -11,6 +12,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Modal,
 } from 'react-native';
 import Collapsible from 'react-native-collapsible';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,27 +27,43 @@ export default function ReportsScreen() {
   const [rotationValues, setRotationValues] = useState<{
     [key: string]: Animated.Value;
   }>({});
+  const [showPDFViewer, setShowPDFViewer] = useState(false);
+  const [selectedPDF, setSelectedPDF] = useState<{
+    url: string;
+    title: string;
+  } | null>(null);
 
   // Sample data structure
-  const sampleReports = {
+  const sampleReports: {
+    [key: string]: {
+      id: string;
+      documentName: string;
+      dateAccomplished: string;
+      type: string;
+      pdfUrl: string;
+    }[];
+  } = {
     '2023-10': [
       {
         id: '1',
         documentName: 'Monthly Fire Safety Report',
         dateAccomplished: '2023-10-15',
         type: 'safety',
+        pdfUrl: 'https://pdfobject.com/pdf/sample.pdf',
       },
       {
         id: '2',
         documentName: 'Emergency Response Drill Summary',
         dateAccomplished: '2023-10-12',
         type: 'emergency',
+        pdfUrl: 'https://pdfobject.com/pdf/sample.pdf',
       },
       {
         id: '3',
         documentName: 'Equipment Maintenance Log',
         dateAccomplished: '2023-10-08',
         type: 'maintenance',
+        pdfUrl: 'https://pdfobject.com/pdf/sample.pdf',
       },
     ],
     '2023-09': [
@@ -54,12 +72,14 @@ export default function ReportsScreen() {
         documentName: 'Quarterly Incident Analysis',
         dateAccomplished: '2023-09-28',
         type: 'analysis',
+        pdfUrl: 'https://pdfobject.com/pdf/sample.pdf',
       },
       {
         id: '5',
         documentName: 'Training Completion Report',
         dateAccomplished: '2023-09-20',
         type: 'training',
+        pdfUrl: 'https://pdfobject.com/pdf/sample.pdf',
       },
     ],
     '2023-08': [
@@ -68,18 +88,21 @@ export default function ReportsScreen() {
         documentName: 'Community Outreach Summary',
         dateAccomplished: '2023-08-25',
         type: 'outreach',
+        pdfUrl: 'https://pdfobject.com/pdf/sample.pdf',
       },
       {
         id: '7',
         documentName: 'Resource Allocation Report',
         dateAccomplished: '2023-08-15',
         type: 'resource',
+        pdfUrl: 'https://pdfobject.com/pdf/sample.pdf',
       },
       {
         id: '8',
         documentName: 'Weather Impact Assessment',
         dateAccomplished: '2023-08-05',
         type: 'assessment',
+        pdfUrl: 'https://pdfobject.com/pdf/sample.pdf',
       },
     ],
   };
@@ -134,9 +157,12 @@ export default function ReportsScreen() {
     }));
   };
 
-  const handleViewDocument = (documentId: string, documentName: string) => {
-    console.log(`Viewing document: ${documentName} (ID: ${documentId})`);
-    // Implement document viewing logic here
+  const handleViewDocument = (documentId: string, documentName: string, pdfUrl: string) => {
+    setSelectedPDF({
+      url: pdfUrl,
+      title: documentName,
+    });
+    setShowPDFViewer(true);
   };
 
   const formatMonthYear = (key: string) => {
@@ -156,14 +182,6 @@ export default function ReportsScreen() {
       'December',
     ];
     return `${monthNames[parseInt(month) - 1]} ${year}`;
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
   };
 
   return (
@@ -284,6 +302,7 @@ export default function ReportsScreen() {
                         dateAccomplished={report.dateAccomplished}
                         onViewDocument={handleViewDocument}
                         type={report.type}
+                        pdfUrl={report.pdfUrl}
                       />
                     ))}
                   </View>
@@ -293,6 +312,24 @@ export default function ReportsScreen() {
           })}
         </ScrollView>
       </View>
+
+      {/* PDF Viewer Modal */}
+      <Modal
+        visible={showPDFViewer}
+        animationType="slide"
+        presentationStyle="fullScreen"
+      >
+        {selectedPDF && (
+          <PDFViewer
+            pdfUrl={selectedPDF.url}
+            title={selectedPDF.title}
+            onClose={() => {
+              setShowPDFViewer(false);
+              setSelectedPDF(null);
+            }}
+          />
+        )}
+      </Modal>
     </SafeAreaView>
   );
 }

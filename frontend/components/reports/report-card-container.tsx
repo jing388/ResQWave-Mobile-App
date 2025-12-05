@@ -6,8 +6,9 @@ interface ReportCardContainerProps {
   id: string;
   documentName: string;
   dateAccomplished: string;
-  onViewDocument: (id: string, documentName: string) => void;
+  onViewDocument: (id: string, documentName: string, pdfUrl: string) => void;
   type?: string;
+  pdfUrl: string;
 }
 
 export function ReportCardContainer({
@@ -15,7 +16,8 @@ export function ReportCardContainer({
   documentName,
   dateAccomplished,
   onViewDocument,
-  type
+  type,
+  pdfUrl
 }: ReportCardContainerProps) {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -28,7 +30,7 @@ export function ReportCardContainer({
   return (
     <TouchableOpacity 
       className="bg-gray-800 rounded-xl border border-gray-600 p-4 mb-3"
-      onPress={() => onViewDocument(id, documentName)}
+      onPress={() => onViewDocument(id, documentName, pdfUrl)}
       activeOpacity={0.7}
     >
       <View className="flex-row items-center">
