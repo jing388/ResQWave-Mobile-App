@@ -134,16 +134,18 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, onClose, title = '
     try {
       let fileToShare = localUri;
       
-      // If we don't have a local file, try to download it first
-      if (!fileToShare && pdfUrl) {
+      // If localUri is an online URL, download it first for sharing
+      if (localUri && localUri.startsWith('http')) {
+        console.log('Online URL detected, downloading for sharing...');
         const filename = pdfUrl.split('/').pop() || 'document.pdf';
         const fs = FileSystem as any;
         const tempPath = `${fs.cacheDirectory || ''}${filename}`;
         
         try {
-          const downloadResult = await FileSystem.downloadAsync(pdfUrl, tempPath);
+          const downloadResult = await FileSystem.downloadAsync(localUri, tempPath);
           if (downloadResult.status === 200) {
             fileToShare = downloadResult.uri;
+            console.log('Downloaded for sharing:', fileToShare);
           }
         } catch (error) {
           console.warn('Could not download for sharing:', error);
@@ -152,13 +154,36 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, onClose, title = '
         }
       }
       
-      if (fileToShare) {
+      // If we still don't have a local file, try downloading from original URL
+      if (!fileToShare && pdfUrl) {
+        console.log('No local file, downloading from original URL for sharing...');
+        const filename = pdfUrl.split('/').pop() || 'document.pdf';
+        const fs = FileSystem as any;
+        const tempPath = `${fs.cacheDirectory || ''}${filename}`;
+        
+        try {
+          const downloadResult = await FileSystem.downloadAsync(pdfUrl, tempPath);
+          if (downloadResult.status === 200) {
+            fileToShare = downloadResult.uri;
+            console.log('Downloaded from original URL for sharing:', fileToShare);
+          }
+        } catch (error) {
+          console.warn('Could not download from original URL for sharing:', error);
+          Alert.alert('Error', 'Could not prepare PDF for sharing');
+          return;
+        }
+      }
+      
+      // Ensure we have a local file before sharing
+      if (fileToShare && fileToShare.startsWith('file://')) {
+        console.log('Sharing local file:', fileToShare);
         await Sharing.shareAsync(fileToShare, {
           mimeType: 'application/pdf',
           dialogTitle: 'Share PDF',
         });
       } else {
-        Alert.alert('Error', 'No PDF available to share');
+        console.error('No valid local file available for sharing, fileToShare:', fileToShare);
+        Alert.alert('Error', 'No local PDF file available to share');
       }
     } catch (error) {
       console.error('Share error:', error);
