@@ -28,7 +28,7 @@ export interface UseNeighborhoodDataReturn {
   handleAlternativeFocalChange: (field: string, value: string) => void;
 }
 
-export const useNeighborhoodData = (): UseNeighborhoodDataReturn => {
+export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighborhoodDataReturn => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [neighborhoodData, setNeighborhoodData] =
@@ -53,9 +53,17 @@ export const useNeighborhoodData = (): UseNeighborhoodDataReturn => {
   // Fetch neighborhood data from backend
   useEffect(() => {
     const loadData = async () => {
+      // Don't fetch if neighborhoodId is still being determined
+      if (neighborhoodId === undefined) {
+        console.log('NeighborhoodId is undefined, skipping fetch');
+        setIsLoading(false);
+        return;
+      }
+
       try {
         setIsLoading(true);
-        const data = await fetchNeighborhoodData();
+        console.log('Fetching neighborhood data for:', neighborhoodId);
+        const data = await fetchNeighborhoodData(neighborhoodId);
 
         if (!data) {
           console.error('No neighborhood data returned');
@@ -89,14 +97,20 @@ export const useNeighborhoodData = (): UseNeighborhoodDataReturn => {
         });
       } catch (error) {
         console.error('Error fetching neighborhood data:', error);
-        // TODO: Show error message to user
+        // Check if it's a 404 error (no neighborhood assigned)
+        if (error instanceof Error && error.message.includes('Neighborhood Not Found')) {
+          console.log('User has no neighborhood assigned - this is expected for new users');
+        } else {
+          console.error('Unexpected error fetching neighborhood data:', error);
+        }
+        // Don't throw error, just leave neighborhoodData as null
       } finally {
         setIsLoading(false);
       }
     };
 
     loadData();
-  }, []);
+  }, [neighborhoodId]);
 
   // Handler functions
   const handleEditPress = () => {

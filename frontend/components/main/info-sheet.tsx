@@ -118,6 +118,14 @@ export function InfoSheet({
               >
                 <Pencil size={20} color="#ffffff" />
               </TouchableOpacity>
+              {/* More Info Button */}
+              <TouchableOpacity
+                className="bg-green-500 rounded-lg p-3"
+                onPress={() => onMoreInfo?.(markerData)}
+                activeOpacity={0.7}
+              >
+                <Radio size={20} color="#ffffff" />
+              </TouchableOpacity>
             </View>
 
             {/* Terminal ID */}

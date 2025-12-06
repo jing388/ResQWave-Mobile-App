@@ -47,6 +47,34 @@ export interface BackendNeighborhoodDetails {
   updatedDate: string | null;
 }
 
+// Response from getNeighborhood endpoint (specific neighborhood by ID)
+export interface BackendSpecificNeighborhood {
+  id: string;
+  terminalID: string;
+  noOfHouseholds: string;
+  noOfResidents: string;
+  floodSubsideHours: string;
+  hazards: string[];
+  otherInformation: string | null;
+  focalPersonID: string;
+  focalPerson: {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    contactNumber: string | null;
+    email: string | null;
+    photo: any | null;
+    altFirstName: string | null;
+    altLastName: string | null;
+    altContactNumber: string | null;
+    altEmail: string | null;
+    alternativeFPImage: any | null;
+    address: string | null;
+  } | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Frontend marker type for map display
 export interface MarkerData {
   id: string;

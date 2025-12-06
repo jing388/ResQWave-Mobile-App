@@ -1,6 +1,5 @@
 import { InfoSheet } from '@/components/main/info-sheet';
 import { LayersButton } from '@/components/main/layers-button';
-import { getPinColors } from '@/components/main/pin';
 import { LocationButton } from '@/components/main/your-location-button';
 import { Avatar } from '@/components/ui/avatar';
 import { SearchField } from '@/components/ui/location-search-field';
@@ -9,6 +8,10 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useNeighborhoods } from '@/hooks/use-neighborhoods';
 import { MarkerData } from '@/types/neighborhood';
+import {
+  saveLastSelectedNeighborhood,
+  getLastSelectedNeighborhood,
+} from '@/services/neighborhood-persistence';
 import type { LocationObject } from 'expo-location';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
@@ -38,8 +41,7 @@ export default function HomeScreen() {
   const colors = Colors[colorScheme];
 
   // Fetch neighborhoods from backend
-  const { markers, ownNeighborhood, isLoading, error, refetch } =
-    useNeighborhoods();
+  const { markers, ownNeighborhood, isLoading } = useNeighborhoods();
 
   const [location, setLocation] = useState<LocationObject | null>(null);
   const [region, setRegion] = useState<Region>({
@@ -106,6 +108,30 @@ export default function HomeScreen() {
     })();
   }, [ownNeighborhood]);
 
+  // Load and focus on last selected neighborhood
+  useEffect(() => {
+    const loadLastSelectedNeighborhood = async () => {
+      if (markers.length > 0) {
+        const lastSelectedId = await getLastSelectedNeighborhood();
+        if (lastSelectedId) {
+          const lastSelectedMarker = markers.find(marker => marker.id === lastSelectedId);
+          if (lastSelectedMarker) {
+            console.log('Focusing on last selected neighborhood:', lastSelectedId);
+            setRegion({
+              latitude: lastSelectedMarker.latitude,
+              longitude: lastSelectedMarker.longitude,
+              latitudeDelta: LATITUDE_DELTA,
+              longitudeDelta: LONGITUDE_DELTA,
+            });
+            setActiveMarkerId(lastSelectedId);
+          }
+        }
+      }
+    };
+
+    loadLastSelectedNeighborhood();
+  }, [markers]);
+
   const onRegionChangeComplete = useCallback((newRegion: Region) => {
     setRegion(newRegion);
   }, []);
@@ -144,12 +170,17 @@ export default function HomeScreen() {
     setActiveMarkerId(null);
   };
 
-  const handleGetDirections = (markerData: MarkerData) => {
-    console.log('Get directions to:', markerData.neighborhoodID);
-  };
-
-  const handleMoreInfo = (markerData: MarkerData) => {
+  const handleMoreInfo = async (markerData: MarkerData) => {
     console.log('More info about:', markerData.neighborhoodID);
+    
+    // Save the selected neighborhood ID for persistence
+    await saveLastSelectedNeighborhood(markerData.id);
+    
+    // Navigate to the About Neighborhood page with the neighborhood ID
+    router.push({
+      pathname: '/(tabs)/about-neighborhood',
+      params: { neighborhoodId: markerData.id }
+    });
   };
 
   const handleLocationSelect = (location: any) => {
@@ -160,9 +191,6 @@ export default function HomeScreen() {
     }
   };
 
-  const handleEdit = (markerData: MarkerData) => {
-    console.log('Edit location:', markerData.neighborhoodID);
-  };
 
   return (
     <ThemedView style={styles.container}>
@@ -202,8 +230,12 @@ export default function HomeScreen() {
 
         {/* Dynamically render all markers and their circles */}
         {markers.map((marker) => {
-          // Get marker color based on type
+          // Get marker color based on type and selection
           const getMarkerColor = () => {
+            // If this is the last selected neighborhood, show it in blue
+            if (activeMarkerId === marker.id) {
+              return '#007AFF'; // Blue for selected neighborhood
+            }
             switch (marker.type) {
               case 'own':
                 return '#34D399'; // Green for own neighborhood
@@ -219,13 +251,17 @@ export default function HomeScreen() {
           // Circle colors for active marker
           const circleColors = {
             fill:
-              marker.type === 'own'
-                ? 'rgba(52, 211, 153, 0.1)'
-                : 'rgba(156, 163, 175, 0.1)',
+              activeMarkerId === marker.id
+                ? 'rgba(0, 122, 255, 0.1)' // Blue for selected
+                : marker.type === 'own'
+                ? 'rgba(52, 211, 153, 0.1)' // Green for own
+                : 'rgba(156, 163, 175, 0.1)', // Gray for other
             stroke:
-              marker.type === 'own'
-                ? 'rgba(52, 211, 153, 0.3)'
-                : 'rgba(156, 163, 175, 0.3)',
+              activeMarkerId === marker.id
+                ? 'rgba(0, 122, 255, 0.3)' // Blue for selected
+                : marker.type === 'own'
+                ? 'rgba(52, 211, 153, 0.3)' // Green for own
+                : 'rgba(156, 163, 175, 0.3)', // Gray for other
           };
 
           return (
@@ -246,6 +282,7 @@ export default function HomeScreen() {
 
               {/* Marker with custom color */}
               <Marker
+                key={`${marker.id}-${activeMarkerId === marker.id ? 'active' : 'inactive'}`}
                 coordinate={{
                   latitude: marker.latitude,
                   longitude: marker.longitude,
@@ -298,6 +335,7 @@ export default function HomeScreen() {
         visible={sheetVisible}
         markerData={selectedMarker}
         onClose={hideBottomSheet}
+        onMoreInfo={handleMoreInfo}
       />
     </ThemedView>
   );

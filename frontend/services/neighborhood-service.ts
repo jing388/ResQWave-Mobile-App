@@ -3,6 +3,7 @@ import {
   BackendOwnNeighborhood,
   BackendOtherNeighborhood,
   BackendNeighborhoodDetails,
+  BackendSpecificNeighborhood,
   MarkerData,
 } from '@/types/neighborhood';
 import { apiFetch } from '@/lib/api-client';
@@ -52,7 +53,7 @@ const parseAddress = (
 
     console.log('📍 parseAddress result:', result);
     return result;
-  } catch (error) {
+  } catch {
     console.log(
       '📍 parseAddress: Failed to parse as JSON, treating as plain string',
     );
@@ -136,53 +137,117 @@ export const fetchOtherNeighborhoods = async (): Promise<MarkerData[]> => {
  * Fetch detailed neighborhood information (for info sheet)
  */
 export const fetchNeighborhoodDetails = async (
-  neighborhoodId?: string,
+  neighborhoodId?: string | null,
 ): Promise<NeighborhoodData | null> => {
   try {
-    const data =
-      await apiFetch<BackendNeighborhoodDetails>('/neighborhood/own');
+    // If neighborhoodId is provided, fetch that specific neighborhood
+    // Otherwise, fetch the user's own neighborhood
+    const endpoint = neighborhoodId 
+      ? `/neighborhood/${neighborhoodId}`
+      : '/neighborhood/map/own';
+    
+    let data: any;
+    if (neighborhoodId) {
+      // Fetch specific neighborhood - different response structure
+      data = await apiFetch<BackendSpecificNeighborhood>(endpoint);
+    } else {
+      // Fetch own neighborhood - different response structure  
+      data = await apiFetch<BackendNeighborhoodDetails>(endpoint);
+    }
 
     const addressData = parseAddress(data.address);
 
-    const households = parseInt(data.noOfHouseholds) || 0;
-    const residents = parseInt(data.noOfResidents) || 0;
+    // If address parsing fails, use default coordinates for Manila area
+    let coordinates = addressData;
+    if (!coordinates) {
+      console.warn('Address parsing failed for neighborhood:', neighborhoodId || 'own', '- Address was:', data.address);
+      coordinates = {
+        latitude: 14.765, // Default Manila area coordinates
+        longitude: 121.0392,
+        address: data.address || `${neighborhoodId || 'Unknown Neighborhood'} - Address not available`
+      };
+    }
+
+    // Handle different response structures based on the endpoint
+    let households, residents, floodwaterSubsidence, hazards, otherInfo, focalPersonData;
+    let neighborhoodIdValue;
+    let createdDate, updatedDate;
+    
+    if (neighborhoodId) {
+      // Specific neighborhood response (getNeighborhood)
+      households = parseInt(data.noOfHouseholds) || 0;
+      residents = parseInt(data.noOfResidents) || 0;
+      floodwaterSubsidence = data.floodSubsideHours || '';
+      hazards = data.hazards || [];
+      otherInfo = data.otherInformation || null;
+      neighborhoodIdValue = data.id; // Use the database ID
+      createdDate = data.createdAt;
+      updatedDate = data.updatedAt;
+      
+      // Map focal person data from getNeighborhood structure
+      focalPersonData = {
+        name: data.focalPerson ? [data.focalPerson.firstName, data.focalPerson.lastName].filter(Boolean).join(' ') : '',
+        number: data.focalPerson?.contactNumber || '',
+        email: data.focalPerson?.email || '',
+        photo: data.focalPerson?.photo || null,
+        alternativeFPFirstName: data.focalPerson?.altFirstName || null,
+        alternativeFPLastName: data.focalPerson?.altLastName || null,
+        alternativeFPNumber: data.focalPerson?.altContactNumber || null,
+        alternativeFPEmail: data.focalPerson?.altEmail || null,
+        alternativeFPImage: data.focalPerson?.alternativeFPImage || null,
+      };
+    } else {
+      // Own neighborhood response (viewAboutYourNeighborhood)
+      households = parseInt(data.noOfHouseholds) || 0;
+      residents = parseInt(data.noOfResidents) || 0;
+      floodwaterSubsidence = data.floodwaterSubsidenceDuration || '';
+      hazards = data.hazards || [];
+      otherInfo = data.otherInformation || null;
+      neighborhoodIdValue = data.neighborhoodID; // Use neighborhoodID for own neighborhood
+      createdDate = data.createdDate;
+      updatedDate = data.updatedDate;
+      
+      // Use existing focal person structure
+      focalPersonData = data.focalPerson;
+    }
+
     const avgSize =
       households > 0 ? parseFloat((residents / households).toFixed(1)) : 0;
 
     return {
-      id: data.neighborhoodID,
-      name: data.neighborhoodID,
-      registeredAt: data.createdDate || '',
-      lastUpdatedAt: data.updatedDate || '',
+      id: neighborhoodIdValue,
+      name: neighborhoodIdValue,
+      registeredAt: createdDate || '',
+      lastUpdatedAt: updatedDate || '',
       terminalID: data.terminalID || '',
-      terminalAddress: addressData?.address || '',
+      terminalAddress: coordinates.address || '',
       coordinates: {
-        latitude: addressData?.latitude || 0,
-        longitude: addressData?.longitude || 0,
+        latitude: coordinates.latitude,
+        longitude: coordinates.longitude,
       },
       approxHouseholds: households,
       approxResidents: residents,
       avgHouseholdSize: avgSize,
-      floodwaterSubsidence: data.floodwaterSubsidenceDuration || '',
-      floodRelatedHazards: data.hazards || [],
-      notableInfo: data.otherInformation ? [data.otherInformation] : [],
+      floodwaterSubsidence: floodwaterSubsidence,
+      floodRelatedHazards: hazards,
+      notableInfo: otherInfo ? [otherInfo] : [],
       focalPerson: {
-        name: data.focalPerson.name || '',
-        contactNo: data.focalPerson.number || '',
-        email: data.focalPerson.email || '',
-        avatar: data.focalPerson.photo,
+        name: focalPersonData.name || '',
+        contactNo: focalPersonData.number || '',
+        email: focalPersonData.email || '',
+        avatar: focalPersonData.photo,
       },
       alternativeFocalPerson: {
         name:
           [
-            data.focalPerson.alternativeFPFirstName,
-            data.focalPerson.alternativeFPLastName,
+            focalPersonData.alternativeFPFirstName,
+            focalPersonData.alternativeFPLastName,
           ]
             .filter(Boolean)
             .join(' ') || '',
-        contactNo: data.focalPerson.alternativeFPNumber || '',
-        email: data.focalPerson.alternativeFPEmail || '',
-        avatar: data.focalPerson.alternativeFPImage,
+        contactNo: focalPersonData.alternativeFPNumber || '',
+        email: focalPersonData.alternativeFPEmail || '',
+        avatar: focalPersonData.alternativeFPImage,
       },
     };
   } catch (error) {
