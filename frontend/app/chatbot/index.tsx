@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Dimensions,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -105,17 +106,22 @@ export default function ChatbotScreen() {
         onPress={() => router.back()}
       />
 
-      {/* Info Button - Fixed to top right of screen */}
+      {/* Info Button */}
       <TouchableOpacity
         onPress={() => {
           console.log('Info pressed');
-          // Add your info action here
         }}
-        className="absolute z-20 w-10 h-10 rounded-full bg-gray-900 items-center justify-center"
-        activeOpacity={0.7}
         style={{
+          position: 'absolute',
           top: insets.top + 10,
           right: 16,
+          zIndex: 20,
+          width: 40,
+          height: 40,
+          borderRadius: 20,
+          backgroundColor: '#1F2937',
+          alignItems: 'center',
+          justifyContent: 'center',
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 2 },
           shadowOpacity: 0.3,
@@ -126,130 +132,162 @@ export default function ChatbotScreen() {
         <Info size={20} color="#FFFFFF" />
       </TouchableOpacity>
 
-      {/* Chat Drawer Container */}
+      {/* Bottom Sheet Container */}
       <View
         style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: height * 0.85,
-          backgroundColor: '#1C1C1E',
-          borderTopLeftRadius: 32,
-          borderTopRightRadius: 32,
-          overflow: 'hidden',
+          flex: 1,
+          backgroundColor: "#3B82F6",
+          flexDirection: 'column',
         }}
       >
-
-        {/* Header with Avatar */}
-        <View
-          style={{
-            paddingTop: 40,
-            alignItems: 'center',
-            paddingBottom: 20,
-          }}
-        >
-          {/* Chat Avatar - Add your image here */}
-          {/* <Image 
-            source={require('@/assets/images/chatbot-mascot.png')} 
-            className="w-28 h-28 rounded-full mb-4"
+        {/* Container 1: Mascot */}
+        <View style={{ height: 190, width: '100%', justifyContent: 'flex-end' }}>
+          <Image
+            source={require('@/assets/images/ChatbotMascot.png')}
+            style={{ width: '100%', height: '90%' }}
             resizeMode="cover"
-          /> */}
-
-          {/* Welcome Text */}
-          <View className="bg-gray-900 px-6 py-4 rounded-3xl mx-5 mb-2">
-            <Text className="text-center text-base">
-              <Text className="text-blue-500 font-bold">Reskwie</Text>
-              <Text className="text-white font-normal"> at your service!</Text>
-            </Text>
-            <Text className="text-gray-400 text-xs text-center mt-1">
-              ResQWave's Chatbot assistant
-            </Text>
-          </View>
-
-          {/* Timestamp */}
-          <Text className="text-gray-500 text-xs mt-2">
-            {new Date().toLocaleString('en-US', {
-              day: '2-digit',
-              month: 'short',
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: true,
-            }).toUpperCase()}
-          </Text>
+          />
         </View>
 
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        {/* Container 2: Chat Drawer */}
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: '#1C1C1E',
+            borderTopLeftRadius: 32,
+            borderTopRightRadius: 32,
+          }}
         >
-          {/* Messages */}
-          <ScrollView
-            ref={scrollViewRef}
-            className="flex-1 px-5"
-            contentContainerStyle={{ paddingTop: 10, paddingBottom: 20 }}
-            showsVerticalScrollIndicator={false}
-          >
-            {messages.map((message) => (
-              <View key={message.id} className="mb-3">
-                <View className="bg-gray-900 px-4 py-3 rounded-2xl">
-                  <Text className="text-white text-sm leading-5">
-                    {message.text}
-                  </Text>
-                </View>
-              </View>
-            ))}
-          </ScrollView>
-
-          {/* Quick Actions */}
-          {messages.length <= 2 && (
-            <View className="px-5 pb-3">
-              {quickActions.map((action, index) => (
-                <TouchableOpacity
-                  key={index}
-                  className="mb-2 px-4 py-3 rounded-lg bg-gray-900"
-                  onPress={() => handleQuickAction(action)}
-                  activeOpacity={0.7}
-                >
-                  <Text className="text-white text-sm">{action}</Text>
-                </TouchableOpacity>
-              ))}
+          {/* Welcome Text */}
+          <View style={{ paddingTop: 30, alignItems: 'center', paddingBottom: 20 }}>
+            <View
+              style={{
+                backgroundColor: '#2C2C2E',
+                paddingHorizontal: 24,
+                paddingVertical: 16,
+                borderRadius: 24,
+                marginHorizontal: 20,
+                marginBottom: 8,
+              }}
+            >
+              <Text style={{ textAlign: 'center', fontSize: 16 }}>
+                <Text style={{ color: '#3B82F6', fontWeight: 'bold' }}>Reskwie</Text>
+                <Text style={{ color: '#FFFFFF' }}> at your service!</Text>
+              </Text>
+              <Text style={{ color: '#9CA3AF', fontSize: 12, textAlign: 'center', marginTop: 4 }}>
+                ResQWave's Chatbot assistant
+              </Text>
             </View>
-          )}
+            <Text style={{ color: '#6B7280', fontSize: 12, marginTop: 8 }}>
+              {new Date().toLocaleString('en-US', {
+                day: '2-digit',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true,
+              }).toUpperCase()}
+            </Text>
+          </View>
 
-          {/* Input Area */}
-          <View
-            className="px-5 py-4"
-            style={{
-              paddingBottom: Math.max(insets.bottom, 16),
-              backgroundColor: '#1C1C1E',
-            }}
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           >
-            <View className="flex-row items-center bg-gray-900 rounded-full px-5 py-1">
-              <TextInput
-                value={inputText}
-                onChangeText={setInputText}
-                placeholder="Ask anything"
-                placeholderTextColor="#6B7280"
-                className="flex-1 text-white text-sm py-3"
-                multiline={false}
-                maxLength={500}
-              />
-              <TouchableOpacity
-                onPress={handleSend}
-                className="w-11 h-11 rounded-full items-center justify-center ml-2"
-                activeOpacity={0.8}
-                disabled={!inputText.trim()}
+            {/* Messages */}
+            <ScrollView
+              ref={scrollViewRef}
+              style={{ flex: 1, paddingHorizontal: 20 }}
+              contentContainerStyle={{ paddingTop: 10, paddingBottom: 20 }}
+              showsVerticalScrollIndicator={false}
+            >
+              {messages.map((message) => (
+                <View key={message.id} style={{ marginBottom: 12 }}>
+                  <View
+                    style={{
+                      backgroundColor: '#2C2C2E',
+                      paddingHorizontal: 16,
+                      paddingVertical: 12,
+                      borderRadius: 16,
+                    }}
+                  >
+                    <Text style={{ color: '#FFFFFF', fontSize: 14, lineHeight: 20 }}>
+                      {message.text}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+
+            {/* Quick Actions */}
+            {messages.length <= 2 && (
+              <View style={{ paddingHorizontal: 20, paddingBottom: 12 }}>
+                {quickActions.map((action, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={{
+                      backgroundColor: '#2C2C2E',
+                      paddingHorizontal: 16,
+                      paddingVertical: 12,
+                      borderRadius: 8,
+                      marginBottom: 8,
+                    }}
+                    onPress={() => handleQuickAction(action)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={{ color: '#FFFFFF', fontSize: 14 }}>{action}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* Input Area */}
+            <View
+              style={{
+                paddingHorizontal: 20,
+                paddingVertical: 16,
+                paddingBottom: Math.max(insets.bottom, 16),
+                backgroundColor: '#1C1C1E',
+              }}
+            >
+              <View
                 style={{
-                  backgroundColor: inputText.trim() ? '#3B82F6' : '#374151',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: '#2C2C2E',
+                  borderRadius: 25,
+                  paddingHorizontal: 20,
+                  paddingVertical: 4,
                 }}
               >
-                <Send size={18} color="#FFFFFF" />
-              </TouchableOpacity>
+                <TextInput
+                  value={inputText}
+                  onChangeText={setInputText}
+                  placeholder="Ask anything"
+                  placeholderTextColor="#6B7280"
+                  style={{ flex: 1, color: '#FFFFFF', fontSize: 14, paddingVertical: 12 }}
+                  multiline={false}
+                  maxLength={500}
+                />
+                <TouchableOpacity
+                  onPress={handleSend}
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 22,
+                    backgroundColor: inputText.trim() ? '#3B82F6' : '#374151',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginLeft: 8,
+                  }}
+                  activeOpacity={0.8}
+                  disabled={!inputText.trim()}
+                >
+                  <Send size={18} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        </KeyboardAvoidingView>
+          </KeyboardAvoidingView>
+        </View>
       </View>
     </View>
   );
