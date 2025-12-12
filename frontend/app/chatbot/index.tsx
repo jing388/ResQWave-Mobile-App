@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Send, Info } from 'lucide-react-native';
+import { Send, Info, SquarePen } from 'lucide-react-native';
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -96,6 +96,26 @@ export default function ChatbotScreen() {
       botTimeoutRef.current = null;
     }
     setIsTyping(false);
+  };
+
+  const handleNewChat = () => {
+    // Reset to initial state
+    setMessages([
+      {
+        id: '1',
+        text: "Hi, I'm Reskwie! Think of me like an assistant who's here to help you get to know ResQWave more!\n\nSo, what can I help you with today?",
+        sender: 'bot',
+        timestamp: new Date(),
+      },
+    ]);
+    setInputText('');
+    setIsTyping(false);
+    setTranslatingMessages(new Set());
+    setShowTranslation(new Set());
+    if (botTimeoutRef.current) {
+      clearTimeout(botTimeoutRef.current);
+      botTimeoutRef.current = null;
+    }
   };
 
   const handleSend = () => {
@@ -267,6 +287,30 @@ export default function ChatbotScreen() {
         }}
       >
         <Info size={20} color="#FFFFFF" />
+      </TouchableOpacity>
+
+      {/* New Chat Button */}
+      <TouchableOpacity
+        onPress={handleNewChat}
+        style={{
+          position: 'absolute',
+          top: insets.top + 60,
+          right: 16,
+          zIndex: 20,
+          width: 40,
+          height: 40,
+          borderRadius: 5,
+          backgroundColor: '#1D1D1D',
+          alignItems: 'center',
+          justifyContent: 'center',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.3,
+          shadowRadius: 4,
+          elevation: 4,
+        }}
+      >
+        <SquarePen size={20} color="#9CA3AF" />
       </TouchableOpacity>
 
       {/* Bottom Sheet Container */}
