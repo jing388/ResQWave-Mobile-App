@@ -29,6 +29,7 @@ interface Message {
 export default function ChatbotScreen() {
   const insets = useSafeAreaInsets();
   const scrollViewRef = useRef<ScrollView>(null);
+  const botTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -89,6 +90,13 @@ export default function ChatbotScreen() {
     'How do I edit our neighborhood information?',
     'How to use the ResQWave Terminal?',
   ];
+  const handleStopResponse = () => {
+    if (botTimeoutRef.current) {
+      clearTimeout(botTimeoutRef.current);
+      botTimeoutRef.current = null;
+    }
+    setIsTyping(false);
+  };
 
   const handleSend = () => {
     if (inputText.trim()) {
@@ -114,7 +122,7 @@ export default function ChatbotScreen() {
       }, 100);
 
       // Simulate bot response
-      setTimeout(() => {
+      botTimeoutRef.current = setTimeout(() => {
         setIsTyping(false);
         const botResponse: Message = {
           id: (Date.now() + 1).toString(),
@@ -128,6 +136,7 @@ export default function ChatbotScreen() {
         setTimeout(() => {
           scrollViewRef.current?.scrollToEnd({ animated: true });
         }, 50);
+        botTimeoutRef.current = null;
       }, 1500);
     }
   };
@@ -194,7 +203,7 @@ export default function ChatbotScreen() {
     }, 100);
 
     // Simulate bot response
-    setTimeout(() => {
+    botTimeoutRef.current = setTimeout(() => {
       setIsTyping(false);
       const botResponse: Message = {
         id: (Date.now() + 1).toString(),
@@ -208,6 +217,7 @@ export default function ChatbotScreen() {
       setTimeout(() => {
         scrollViewRef.current?.scrollToEnd({ animated: true });
       }, 50);
+      botTimeoutRef.current = null;
     }, 1500);
   };
 
@@ -409,9 +419,11 @@ export default function ChatbotScreen() {
                     borderRadius: 6,
                     marginBottom: 8,
                     alignItems: 'center',
+                    opacity: isTyping ? 0.5 : 1,
                   }}
                   onPress={() => handleQuickAction(action)}
                   activeOpacity={0.7}
+                  disabled={isTyping}
                 >
                   <Text style={{ color: '#FFFFFF', fontSize: 13, lineHeight: 14, textAlign: 'center' }}>{action}</Text>
                 </TouchableOpacity>
@@ -451,19 +463,24 @@ export default function ChatbotScreen() {
                 />
               </View>
               <TouchableOpacity
-                onPress={handleSend}
+                onPress={isTyping ? handleStopResponse : handleSend}
                 style={{
                   width: 47,
                   height: 47,
                   borderRadius: 7,
-                  backgroundColor: '#3B82F6',
+                  backgroundColor: '#1D1D1D',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  opacity: (!inputText.trim() && !isTyping) ? 0.5 : 1,
                 }}
                 activeOpacity={0.8}
-                disabled={!inputText.trim()}
+                disabled={!inputText.trim() && !isTyping}
               >
-                <Send size={20} color="#FFFFFF" />
+                {isTyping ? (
+                  <View style={{ width: 16, height: 16, backgroundColor: '#FFFFFF', borderRadius: 2 }} />
+                ) : (
+                  <Send size={20} color="#FFFFFF" />
+                )}
               </TouchableOpacity>
             </View>
           </KeyboardAvoidingView>
