@@ -1,5 +1,6 @@
 import { InfoSheet } from '@/components/main/info-sheet';
 import { LayersButton } from '@/components/main/layers-button';
+import { ChatbotButton } from '@/components/main/chatbot-button';
 import { LocationButton } from '@/components/main/your-location-button';
 import { Avatar } from '@/components/ui/avatar';
 import { SearchField } from '@/components/ui/location-search-field';
@@ -172,10 +173,10 @@ export default function HomeScreen() {
 
   const handleMoreInfo = async (markerData: MarkerData) => {
     console.log('More info about:', markerData.neighborhoodID);
-    
+
     // Save the selected neighborhood ID for persistence
     await saveLastSelectedNeighborhood(markerData.id);
-    
+
     // Navigate to the About Neighborhood page with the neighborhood ID
     router.push({
       pathname: '/(tabs)/about-neighborhood',
@@ -254,14 +255,14 @@ export default function HomeScreen() {
               activeMarkerId === marker.id
                 ? 'rgba(0, 122, 255, 0.1)' // Blue for selected
                 : marker.type === 'own'
-                ? 'rgba(52, 211, 153, 0.1)' // Green for own
-                : 'rgba(156, 163, 175, 0.1)', // Gray for other
+                  ? 'rgba(52, 211, 153, 0.1)' // Green for own
+                  : 'rgba(156, 163, 175, 0.1)', // Gray for other
             stroke:
               activeMarkerId === marker.id
                 ? 'rgba(0, 122, 255, 0.3)' // Blue for selected
                 : marker.type === 'own'
-                ? 'rgba(52, 211, 153, 0.3)' // Green for own
-                : 'rgba(156, 163, 175, 0.3)', // Gray for other
+                  ? 'rgba(52, 211, 153, 0.3)' // Green for own
+                  : 'rgba(156, 163, 175, 0.3)', // Gray for other
           };
 
           return (
@@ -326,6 +327,11 @@ export default function HomeScreen() {
         <LayersButton
           onPress={() => {
             console.log('Layers pressed');
+          }}
+        />
+        <ChatbotButton
+          onPress={() => {
+            router.push('/chatbot' as any);
           }}
         />
       </View>
