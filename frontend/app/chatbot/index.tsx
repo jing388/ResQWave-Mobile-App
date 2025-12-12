@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { Send, Info, SquarePen } from 'lucide-react-native';
 import React, { useState, useRef, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
@@ -48,6 +49,45 @@ export default function ChatbotScreen() {
   const dot1Opacity = useRef(new Animated.Value(0.3)).current;
   const dot2Opacity = useRef(new Animated.Value(0.3)).current;
   const dot3Opacity = useRef(new Animated.Value(0.3)).current;
+
+  // Load messages from storage on mount
+  useEffect(() => {
+    const loadMessages = async () => {
+      try {
+        const savedMessages = await AsyncStorage.getItem('chatbot_messages');
+        if (savedMessages) {
+          const parsedMessages = JSON.parse(savedMessages);
+          // Convert timestamp strings back to Date objects
+          const messagesWithDates = parsedMessages.map((msg: any) => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp),
+          }));
+          setMessages(messagesWithDates);
+          // Scroll to bottom after loading messages
+          setTimeout(() => {
+            scrollViewRef.current?.scrollToEnd({ animated: false });
+          }, 100);
+        }
+      } catch (error) {
+        console.error('Error loading messages:', error);
+      }
+    };
+    loadMessages();
+  }, []);
+
+  // Save messages to storage whenever they change
+  useEffect(() => {
+    const saveMessages = async () => {
+      try {
+        await AsyncStorage.setItem('chatbot_messages', JSON.stringify(messages));
+      } catch (error) {
+        console.error('Error saving messages:', error);
+      }
+    };
+    if (messages.length > 0) {
+      saveMessages();
+    }
+  }, [messages]);
 
   useEffect(() => {
     if (isTyping) {
@@ -98,16 +138,17 @@ export default function ChatbotScreen() {
     setIsTyping(false);
   };
 
-  const handleNewChat = () => {
+  const handleNewChat = async () => {
     // Reset to initial state
-    setMessages([
+    const initialMessages: Message[] = [
       {
         id: '1',
         text: "Hi, I'm Reskwie! Think of me like an assistant who's here to help you get to know ResQWave more!\n\nSo, what can I help you with today?",
-        sender: 'bot',
+        sender: 'bot' as const,
         timestamp: new Date(),
       },
-    ]);
+    ];
+    setMessages(initialMessages);
     setInputText('');
     setIsTyping(false);
     setTranslatingMessages(new Set());
@@ -115,6 +156,12 @@ export default function ChatbotScreen() {
     if (botTimeoutRef.current) {
       clearTimeout(botTimeoutRef.current);
       botTimeoutRef.current = null;
+    }
+    // Clear storage
+    try {
+      await AsyncStorage.setItem('chatbot_messages', JSON.stringify(initialMessages));
+    } catch (error) {
+      console.error('Error clearing messages:', error);
     }
   };
 
