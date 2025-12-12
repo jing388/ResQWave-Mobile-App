@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { Send, Info } from 'lucide-react-native';
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Platform,
   Dimensions,
   Image,
+  Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -22,6 +23,7 @@ interface Message {
   text: string;
   sender: 'user' | 'bot';
   timestamp: Date;
+  translation?: string;
 }
 
 export default function ChatbotScreen() {
@@ -31,18 +33,56 @@ export default function ChatbotScreen() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: "Hi, I'm Reskwie! Think of me like an assistant who's here to help you get to know ResQWave more!",
-      sender: 'bot',
-      timestamp: new Date(),
-    },
-    {
-      id: '2',
-      text: 'So, what can I help you with today?',
+      text: "Hi, I'm Reskwie! Think of me like an assistant who's here to help you get to know ResQWave more!\n\nSo, what can I help you with today?",
       sender: 'bot',
       timestamp: new Date(),
     },
   ]);
   const [inputText, setInputText] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const [translatingMessages, setTranslatingMessages] = useState<Set<string>>(new Set());
+  const [showTranslation, setShowTranslation] = useState<Set<string>>(new Set());
+
+  // Animated values for typing dots
+  const dot1Opacity = useRef(new Animated.Value(0.3)).current;
+  const dot2Opacity = useRef(new Animated.Value(0.3)).current;
+  const dot3Opacity = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    if (isTyping) {
+      const animateDot = (dotOpacity: Animated.Value, delay: number) => {
+        return Animated.loop(
+          Animated.sequence([
+            Animated.delay(delay),
+            Animated.timing(dotOpacity, {
+              toValue: 1,
+              duration: 400,
+              useNativeDriver: true,
+            }),
+            Animated.timing(dotOpacity, {
+              toValue: 0.3,
+              duration: 400,
+              useNativeDriver: true,
+            }),
+          ])
+        );
+      };
+
+      const animation = Animated.parallel([
+        animateDot(dot1Opacity, 0),
+        animateDot(dot2Opacity, 200),
+        animateDot(dot3Opacity, 400),
+      ]);
+
+      animation.start();
+
+      return () => animation.stop();
+    } else {
+      dot1Opacity.setValue(0.3);
+      dot2Opacity.setValue(0.3);
+      dot3Opacity.setValue(0.3);
+    }
+  }, [isTyping]);
 
   const quickActions = [
     'What is ResQWave for?',
@@ -62,8 +102,20 @@ export default function ChatbotScreen() {
       setMessages((prev) => [...prev, newMessage]);
       setInputText('');
 
+      // Scroll to bottom immediately after adding user message
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 50);
+
+      // Show typing indicator
+      setIsTyping(true);
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+
       // Simulate bot response
       setTimeout(() => {
+        setIsTyping(false);
         const botResponse: Message = {
           id: (Date.now() + 1).toString(),
           text: "I'm processing your request. This is a demo response!",
@@ -71,17 +123,92 @@ export default function ChatbotScreen() {
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, botResponse]);
-      }, 1000);
 
-      // Scroll to bottom
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+        // Scroll to bottom after bot response
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 50);
+      }, 1500);
+    }
+  };
+
+  const handleTranslationToggle = (messageId: string) => {
+    if (showTranslation.has(messageId)) {
+      // Hide translation
+      const newShowTranslation = new Set(showTranslation);
+      newShowTranslation.delete(messageId);
+      setShowTranslation(newShowTranslation);
+    } else {
+      // Check if translation exists
+      const message = messages.find(m => m.id === messageId);
+      if (message?.translation) {
+        // Show existing translation
+        const newShowTranslation = new Set(showTranslation);
+        newShowTranslation.add(messageId);
+        setShowTranslation(newShowTranslation);
+      } else {
+        // Start translating
+        const newTranslating = new Set(translatingMessages);
+        newTranslating.add(messageId);
+        setTranslatingMessages(newTranslating);
+
+        // Simulate translation API call
+        setTimeout(() => {
+          setMessages(prev => prev.map(m =>
+            m.id === messageId
+              ? { ...m, translation: 'This is a demo translated text. Translation logic will be added later.' }
+              : m
+          ));
+
+          const newTranslating = new Set(translatingMessages);
+          newTranslating.delete(messageId);
+          setTranslatingMessages(newTranslating);
+
+          const newShowTranslation = new Set(showTranslation);
+          newShowTranslation.add(messageId);
+          setShowTranslation(newShowTranslation);
+        }, 1000);
+      }
     }
   };
 
   const handleQuickAction = (action: string) => {
-    setInputText(action);
+    const newMessage: Message = {
+      id: Date.now().toString(),
+      text: action,
+      sender: 'user',
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, newMessage]);
+
+    // Scroll to bottom immediately after adding user message
+    setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }, 50);
+
+    // Show typing indicator
+    setIsTyping(true);
+    setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+
+    // Simulate bot response
+    setTimeout(() => {
+      setIsTyping(false);
+      const botResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        text: "I'm processing your request. This is a demo response!",
+        sender: 'bot',
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, botResponse]);
+
+      // Scroll to bottom after bot response
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 50);
+    }, 1500);
   };
 
   return (
@@ -118,8 +245,8 @@ export default function ChatbotScreen() {
           zIndex: 20,
           width: 40,
           height: 40,
-          borderRadius: 20,
-          backgroundColor: '#1F2937',
+          borderRadius: 5,
+          backgroundColor: '#161616',
           alignItems: 'center',
           justifyContent: 'center',
           shadowColor: '#000',
@@ -141,7 +268,7 @@ export default function ChatbotScreen() {
         }}
       >
         {/* Container 1: Mascot */}
-        <View style={{ height: 190, width: '100%', justifyContent: 'flex-end' }}>
+        <View style={{ height: 175, width: '100%', justifyContent: 'flex-end' }}>
           <Image
             source={require('@/assets/images/ChatbotMascot.png')}
             style={{ width: '100%', height: '90%' }}
@@ -153,39 +280,19 @@ export default function ChatbotScreen() {
         <View
           style={{
             flex: 1,
-            backgroundColor: '#1C1C1E',
+            backgroundColor: '#161616',
             borderTopLeftRadius: 32,
             borderTopRightRadius: 32,
           }}
         >
           {/* Welcome Text */}
           <View style={{ paddingTop: 30, alignItems: 'center', paddingBottom: 20 }}>
-            <View
-              style={{
-                backgroundColor: '#2C2C2E',
-                paddingHorizontal: 24,
-                paddingVertical: 16,
-                borderRadius: 24,
-                marginHorizontal: 20,
-                marginBottom: 8,
-              }}
-            >
-              <Text style={{ textAlign: 'center', fontSize: 16 }}>
-                <Text style={{ color: '#3B82F6', fontWeight: 'bold' }}>Reskwie</Text>
-                <Text style={{ color: '#FFFFFF' }}> at your service!</Text>
-              </Text>
-              <Text style={{ color: '#9CA3AF', fontSize: 12, textAlign: 'center', marginTop: 4 }}>
-                ResQWave's Chatbot assistant
-              </Text>
-            </View>
-            <Text style={{ color: '#6B7280', fontSize: 12, marginTop: 8 }}>
-              {new Date().toLocaleString('en-US', {
-                day: '2-digit',
-                month: 'short',
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: true,
-              }).toUpperCase()}
+            <Text style={{ textAlign: 'center', fontSize: 18 }} className='font-medium'>
+              <Text style={{ color: '#3B82F6', fontWeight: 'bold' }}>Reskwie</Text>
+              <Text style={{ color: '#FFFFFF' }}> at your service!</Text>
+            </Text>
+            <Text style={{ color: '#A3A3A3', fontSize: 12, textAlign: 'center', marginTop: 4 }} className='font-normal'>
+              ResQWave's Chatbot assistant
             </Text>
           </View>
 
@@ -200,63 +307,137 @@ export default function ChatbotScreen() {
               contentContainerStyle={{ paddingTop: 10, paddingBottom: 20 }}
               showsVerticalScrollIndicator={false}
             >
-              {messages.map((message) => (
-                <View key={message.id} style={{ marginBottom: 12 }}>
+              {messages.map((message, index) => {
+                const prevMessage = index > 0 ? messages[index - 1] : null;
+                const currentTime = message.timestamp.toLocaleString('en-US', {
+                  day: '2-digit',
+                  month: 'short',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true,
+                });
+                const prevTime = prevMessage ? prevMessage.timestamp.toLocaleString('en-US', {
+                  day: '2-digit',
+                  month: 'short',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true,
+                }) : null;
+                const showTimestamp = currentTime !== prevTime;
+
+                return (
+                  <View key={message.id} style={{ marginBottom: 12, alignItems: message.sender === 'user' ? 'flex-end' : 'flex-start', width: '100%' }}>
+                    {showTimestamp && (
+                      <Text style={{ color: '#6B7280', fontSize: 11, marginBottom: 15, alignSelf: 'center' }}>
+                        {message.timestamp.toLocaleString('en-US', {
+                          day: '2-digit',
+                          month: 'short',
+                        }).toUpperCase()} AT {message.timestamp.toLocaleString('en-US', {
+                          hour: 'numeric',
+                          minute: '2-digit',
+                          hour12: true,
+                        }).toUpperCase()}
+                      </Text>
+                    )}
+                    <View
+                      style={{
+                        backgroundColor: message.sender === 'user' ? '#3B82F6' : '#1D1D1D',
+                        paddingHorizontal: 16,
+                        paddingVertical: 12,
+                        borderRadius: 6,
+                        maxWidth: '85%',
+                      }}
+                    >
+                      <Text style={{ color: '#FFFFFF', fontSize: 14, lineHeight: 19 }}>
+                        {message.text}
+                      </Text>
+                      {message.sender === 'bot' && showTranslation.has(message.id) && message.translation && (
+                        <View style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#404040' }}>
+                          <Text style={{ color: '#A3A3A3', fontSize: 13, lineHeight: 18 }}>
+                            {message.translation}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    {message.sender === 'bot' && (
+                      <TouchableOpacity
+                        style={{ marginTop: 4, paddingHorizontal: 4 }}
+                        onPress={() => handleTranslationToggle(message.id)}
+                      >
+                        <Text style={{ color: '#6B7280', fontSize: 11 }}>
+                          {translatingMessages.has(message.id)
+                            ? 'Translating...'
+                            : showTranslation.has(message.id)
+                              ? 'Hide translation'
+                              : 'See translation'}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                );
+              })}
+
+              {/* Typing Indicator */}
+              {isTyping && (
+                <View style={{ marginBottom: 12, alignItems: 'flex-start', width: '100%' }}>
                   <View
                     style={{
-                      backgroundColor: '#2C2C2E',
                       paddingHorizontal: 16,
                       paddingVertical: 12,
-                      borderRadius: 16,
+                      flexDirection: 'row',
+                      gap: 4,
+                      alignItems: 'center',
                     }}
                   >
-                    <Text style={{ color: '#FFFFFF', fontSize: 14, lineHeight: 20 }}>
-                      {message.text}
-                    </Text>
+                    <Animated.View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#6B7280', opacity: dot1Opacity }} />
+                    <Animated.View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#6B7280', opacity: dot2Opacity }} />
+                    <Animated.View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#6B7280', opacity: dot3Opacity }} />
                   </View>
                 </View>
-              ))}
+              )}
             </ScrollView>
 
             {/* Quick Actions */}
-            {messages.length <= 2 && (
-              <View style={{ paddingHorizontal: 20, paddingBottom: 12 }}>
-                {quickActions.map((action, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={{
-                      backgroundColor: '#2C2C2E',
-                      paddingHorizontal: 16,
-                      paddingVertical: 12,
-                      borderRadius: 8,
-                      marginBottom: 8,
-                    }}
-                    onPress={() => handleQuickAction(action)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={{ color: '#FFFFFF', fontSize: 14 }}>{action}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
+            <View style={{ paddingHorizontal: 20, paddingBottom: 6 }}>
+              {quickActions.map((action, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={{
+                    backgroundColor: '#2B2B2B',
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    borderRadius: 6,
+                    marginBottom: 8,
+                    alignItems: 'center',
+                  }}
+                  onPress={() => handleQuickAction(action)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ color: '#FFFFFF', fontSize: 13, lineHeight: 14, textAlign: 'center' }}>{action}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
             {/* Input Area */}
             <View
               style={{
                 paddingHorizontal: 20,
-                paddingVertical: 16,
+                paddingVertical: 8,
                 paddingBottom: Math.max(insets.bottom, 16),
-                backgroundColor: '#1C1C1E',
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 12,
               }}
             >
               <View
                 style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  backgroundColor: '#2C2C2E',
-                  borderRadius: 25,
-                  paddingHorizontal: 20,
-                  paddingVertical: 4,
+                  flex: 1,
+                  borderRadius: 7,
+                  paddingHorizontal: 15,
+                  borderWidth: 1,
+                  borderColor: '#404040',
+                  height: 47,
+                  justifyContent: 'center',
                 }}
               >
                 <TextInput
@@ -264,27 +445,26 @@ export default function ChatbotScreen() {
                   onChangeText={setInputText}
                   placeholder="Ask anything"
                   placeholderTextColor="#6B7280"
-                  style={{ flex: 1, color: '#FFFFFF', fontSize: 14, paddingVertical: 12 }}
+                  style={{ color: '#FFFFFF', fontSize: 14 }}
                   multiline={false}
                   maxLength={500}
                 />
-                <TouchableOpacity
-                  onPress={handleSend}
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 22,
-                    backgroundColor: inputText.trim() ? '#3B82F6' : '#374151',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginLeft: 8,
-                  }}
-                  activeOpacity={0.8}
-                  disabled={!inputText.trim()}
-                >
-                  <Send size={18} color="#FFFFFF" />
-                </TouchableOpacity>
               </View>
+              <TouchableOpacity
+                onPress={handleSend}
+                style={{
+                  width: 47,
+                  height: 47,
+                  borderRadius: 7,
+                  backgroundColor: '#3B82F6',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                activeOpacity={0.8}
+                disabled={!inputText.trim()}
+              >
+                <Send size={20} color="#FFFFFF" />
+              </TouchableOpacity>
             </View>
           </KeyboardAvoidingView>
         </View>
