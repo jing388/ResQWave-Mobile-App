@@ -559,7 +559,7 @@ export default function ChatbotScreen() {
                   width: 47,
                   height: 47,
                   borderRadius: 7,
-                  backgroundColor: '#1D1D1D',
+                  backgroundColor: isTyping ? '#1D1D1D' : '#3B82F6',
                   alignItems: 'center',
                   justifyContent: 'center',
                   opacity: (!inputText.trim() && !isTyping) ? 0.5 : 1,
