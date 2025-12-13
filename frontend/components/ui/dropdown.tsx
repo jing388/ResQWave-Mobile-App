@@ -1,6 +1,8 @@
 import { ChevronDown } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import React, { useState } from 'react';
 import { Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { CustomInputModal } from './custom-input-modal';
 
 interface DropdownOption {
   label: string;
@@ -14,6 +16,8 @@ interface DropdownProps {
   placeholder?: string;
   disabled?: boolean;
   width?: 'full' | 'half' | number;
+  showCustomInput?: boolean;
+  onCustomValue?: (value: string) => void;
 }
 
 export function Dropdown({
@@ -22,16 +26,40 @@ export function Dropdown({
   onValueChange,
   placeholder = 'Select option',
   disabled = false,
-  width = 'full'
+  width = 'full',
+  showCustomInput = false,
+  onCustomValue,
 }: DropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [showCustomModal, setShowCustomModal] = useState(false);
 
   const selectedOption = options.find(option => option.value === selectedValue);
   const displayText = selectedOption ? selectedOption.label : placeholder;
+  const hasSelection = !!selectedOption;
 
   const handleSelect = (value: string) => {
-    onValueChange(value);
-    setIsOpen(false);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    
+    if (value === 'custom' && showCustomInput && onCustomValue) {
+      setShowCustomModal(true);
+      setIsOpen(false);
+    } else {
+      onValueChange(value);
+      setIsOpen(false);
+    }
+  };
+
+  const handleCustomSubmit = (customValue: string) => {
+    if (onCustomValue) {
+      onCustomValue(customValue);
+    }
+  };
+
+  const handleOpen = () => {
+    if (!disabled) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setIsOpen(true);
+    }
   };
 
   const getWidthStyle = () => {
@@ -45,24 +73,58 @@ export function Dropdown({
     <View style={getWidthStyle()}>
       {/* Dropdown Trigger */}
       <TouchableOpacity
-        className={`flex-row items-center justify-between bg-gray-800 rounded-xl border border-gray-600 h-12 px-4 ${
-          disabled ? 'opacity-50' : ''
-        }`}
-        onPress={() => !disabled && setIsOpen(true)}
+        style={[
+          {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderRadius: 12,
+            borderWidth: 1,
+            height: 56,
+            paddingHorizontal: 16,
+          },
+          disabled 
+            ? {
+                backgroundColor: 'rgba(31, 41, 55, 0.5)',
+                borderColor: '#374151',
+                opacity: 0.5,
+              }
+            : hasSelection 
+              ? {
+                  backgroundColor: 'rgba(59, 130, 246, 0.3)',
+                  borderColor: 'rgba(59, 130, 246, 0.5)',
+                }
+              : {
+                  backgroundColor: '#1F2937',
+                  borderColor: '#4B5563',
+                }
+        ]}
+        onPress={handleOpen}
         activeOpacity={disabled ? 1 : 0.7}
       >
-        <Text className={`text-base font-geist-regular ${
-          selectedOption ? 'text-gray-50' : 'text-gray-400'
-        }`}>
+        <Text style={[
+          {
+            fontSize: 16,
+            fontFamily: 'Geist-Medium',
+            flex: 1,
+            marginRight: 8,
+          },
+          { color: hasSelection ? '#FFFFFF' : '#9CA3AF' }
+        ]} numberOfLines={1}>
           {displayText}
         </Text>
-        <ChevronDown 
-          size={20} 
-          color="#9CA3AF" 
-          style={{ 
-            transform: [{ rotate: isOpen ? '180deg' : '0deg' }] 
-          }} 
-        />
+        <View style={[
+          { marginLeft: 8 },
+          isOpen ? { transform: [{ rotate: '180deg' }] } : {}
+        ]}>
+          <ChevronDown 
+            size={20} 
+            color={hasSelection ? "#3B82F6" : "#9CA3AF"} 
+          />
+        </View>
+        {hasSelection && (
+          <View style={{ marginLeft: 8, width: 8, height: 8, backgroundColor: '#60A5FA', borderRadius: 4 }} />
+        )}
       </TouchableOpacity>
 
       {/* Dropdown Modal */}
@@ -73,45 +135,94 @@ export function Dropdown({
         onRequestClose={() => setIsOpen(false)}
       >
         <TouchableOpacity
-          className="flex-1 bg-black/50"
+          style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.6)' }}
           activeOpacity={1}
           onPress={() => setIsOpen(false)}
         >
-          <View className="flex-1 justify-center px-6">
+          <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 24 }}>
             <TouchableOpacity activeOpacity={1}>
-              <View className="bg-gray-800 rounded-xl border border-gray-600 max-h-80" style={{ overflow: 'hidden' }}>
+              <View style={[
+                {
+                  backgroundColor: '#1F2937',
+                  borderRadius: 16,
+                  borderWidth: 1,
+                  borderColor: '#4B5563',
+                  maxHeight: 384,
+                  overflow: 'hidden',
+                  elevation: 10,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 25 },
+                  shadowOpacity: 0.5,
+                  shadowRadius: 25,
+                }
+              ]}>
+                {/* Modal Header */}
+                <View style={{
+                  backgroundColor: '#1F2937',
+                  paddingHorizontal: 16,
+                  paddingVertical: 12,
+                  borderBottomWidth: 1,
+                  borderBottomColor: '#4B5563',
+                }}>
+                  <Text style={{
+                    color: '#D1D5DB',
+                    fontSize: 14,
+                    fontFamily: 'Geist-Medium',
+                    textAlign: 'center',
+                  }}>
+                    Select an option
+                  </Text>
+                </View>
+                
                 <ScrollView showsVerticalScrollIndicator={false}>
                   {options.map((option, index) => {
                     const isFirst = index === 0;
                     const isLast = index === options.length - 1;
+                    const isSelected = option.value === selectedValue;
                     
-                    let borderClass = '';
+                    let borderStyle = {};
                     if (isFirst && isLast) {
-                      // Single item - all corners rounded
-                      borderClass = 'rounded-xl';
+                      borderStyle = { borderRadius: 12 };
                     } else if (isFirst) {
-                      // First item - top corners rounded
-                      borderClass = 'rounded-t-lg';
+                      borderStyle = { borderTopLeftRadius: 12, borderTopRightRadius: 12 };
                     } else if (isLast) {
-                      // Last item - bottom corners rounded
-                      borderClass = 'rounded-b-lg';
+                      borderStyle = { borderBottomLeftRadius: 12, borderBottomRightRadius: 12 };
                     }
                     
                     return (
                       <TouchableOpacity
                         key={option.value}
-                        className={`px-4 py-4 ${borderClass} ${
-                          !isLast ? 'border-b border-gray-600' : ''
-                        } ${
-                          option.value === selectedValue ? 'bg-gray-700' : ''
-                        }`}
+                        style={[
+                          {
+                            paddingHorizontal: 16,
+                            paddingVertical: 16,
+                          },
+                          borderStyle,
+                          !isLast ? { borderBottomWidth: 1, borderBottomColor: '#374151' } : {},
+                          isSelected ? { backgroundColor: 'rgba(59, 130, 246, 0.2)' } : { backgroundColor: '#1F2937' }
+                        ]}
                         onPress={() => handleSelect(option.value)}
+                        activeOpacity={0.7}
                       >
-                        <Text className={`text-base font-geist-regular ${
-                          option.value === selectedValue ? 'text-blue-400' : 'text-gray-50'
-                        }`}>
+                        <Text style={[
+                          {
+                            fontSize: 16,
+                            fontFamily: 'Geist-Medium',
+                          },
+                          isSelected ? { color: '#60A5FA' } : { color: '#F3F4F6' }
+                        ]}>
                           {option.label}
                         </Text>
+                        {isSelected && (
+                          <View style={{ 
+                            position: 'absolute', 
+                            right: 16, 
+                            top: '50%', 
+                            transform: [{ translateY: -4 }] 
+                          }}>
+                            <View style={{ width: 8, height: 8, backgroundColor: '#60A5FA', borderRadius: 4 }} />
+                          </View>
+                        )}
                       </TouchableOpacity>
                     );
                   })}
@@ -121,6 +232,15 @@ export function Dropdown({
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Custom Input Modal */}
+      <CustomInputModal
+        visible={showCustomModal}
+        onClose={() => setShowCustomModal(false)}
+        onSubmit={handleCustomSubmit}
+        title="Enter Custom Number"
+        placeholder="Enter number"
+      />
     </View>
   );
 }

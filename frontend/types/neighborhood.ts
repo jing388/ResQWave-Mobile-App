@@ -127,8 +127,8 @@ export interface FloodHazard {
 }
 
 export interface EditedData {
-  approxHouseholds: number;
-  approxResidents: number;
+  approxHouseholds: number | string;
+  approxResidents: number | string;
   avgHouseholdSize: number;
   floodwaterSubsidence: string;
   floodRelatedHazards: FloodHazard[];
@@ -138,6 +138,5 @@ export interface EditedData {
     lastName: string;
     contactNo: string;
     email: string;
-    avatar?: string;
   };
 }

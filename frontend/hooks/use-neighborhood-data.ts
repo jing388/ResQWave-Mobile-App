@@ -92,7 +92,6 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
               '',
             contactNo: data.alternativeFocalPerson.contactNo || '',
             email: data.alternativeFocalPerson.email || '',
-            avatar: data.alternativeFocalPerson.avatar,
           },
         });
       } catch (error) {
@@ -143,7 +142,6 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
               .join(' ') || '',
           contactNo: neighborhoodData.alternativeFocalPerson.contactNo || '',
           email: neighborhoodData.alternativeFocalPerson.email || '',
-          avatar: neighborhoodData.alternativeFocalPerson.avatar,
         },
       });
     }
@@ -156,8 +154,12 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
       // Prepare data for API
       const updatedDataParams = {
         neighborhoodId: neighborhoodData.id,
-        approxHouseholds: editedData.approxHouseholds,
-        approxResidents: editedData.approxResidents,
+        approxHouseholds: typeof editedData.approxHouseholds === 'string' 
+          ? parseInt(editedData.approxHouseholds) || 0
+          : editedData.approxHouseholds,
+        approxResidents: typeof editedData.approxResidents === 'string' 
+          ? parseInt(editedData.approxResidents) || 0
+          : editedData.approxResidents,
         avgHouseholdSize: editedData.avgHouseholdSize,
         floodwaterSubsidence: editedData.floodwaterSubsidence,
         floodRelatedHazards: editedData.floodRelatedHazards
@@ -174,8 +176,12 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
       const now = new Date().toISOString();
       setNeighborhoodData({
         ...neighborhoodData,
-        approxHouseholds: updatedDataParams.approxHouseholds,
-        approxResidents: updatedDataParams.approxResidents,
+        approxHouseholds: typeof updatedDataParams.approxHouseholds === 'number' 
+          ? updatedDataParams.approxHouseholds
+          : parseInt(updatedDataParams.approxHouseholds) || 0,
+        approxResidents: typeof updatedDataParams.approxResidents === 'number'
+          ? updatedDataParams.approxResidents
+          : parseInt(updatedDataParams.approxResidents) || 0,
         avgHouseholdSize: updatedDataParams.avgHouseholdSize,
         floodwaterSubsidence: updatedDataParams.floodwaterSubsidence,
         floodRelatedHazards: updatedDataParams.floodRelatedHazards,
@@ -196,7 +202,11 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
       ...prev,
       [field]:
         field === 'approxHouseholds' || field === 'approxResidents'
-          ? parseInt(value)
+          ? value.includes('(custom)') 
+            ? value // Keep custom values as-is
+            : value.includes('-') 
+              ? value // Keep range values as strings
+              : parseInt(value) // Convert individual numbers
           : field === 'avgHouseholdSize'
             ? parseFloat(value)
             : value,
