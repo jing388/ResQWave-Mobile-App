@@ -2,6 +2,7 @@ import { NeighborhoodData } from '@/types/neighborhood';
 import React from 'react';
 import { Text, View } from 'react-native';
 import { formatDate } from '@/utils/formatters';
+import { getHazardLabel } from '@/constants/neighborhood-options';
 
 interface NeighborhoodViewProps {
   neighborhoodData: NeighborhoodData;
@@ -95,7 +96,7 @@ export const NeighborhoodView: React.FC<NeighborhoodViewProps> = ({
                     •
                   </Text>
                   <Text className="text-white text-md font-geist-regular flex-1 leading-6">
-                    {hazard}
+                    {getHazardLabel(hazard)}
                   </Text>
                 </View>
               ),
