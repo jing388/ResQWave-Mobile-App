@@ -1,11 +1,11 @@
+import { AutosizeTextarea } from '@/components/ui/autosize-textarea';
 import { Dropdown } from '@/components/ui/dropdown';
 import { EditableCheckbox } from '@/components/ui/editable-checkbox';
 import { EditInfoCard } from '@/components/ui/edit-info-card';
 import { EditedData, NeighborhoodData } from '@/types/neighborhood';
-import { Check, X } from 'lucide-react-native';
+import { NeighborhoodDropdownOptions } from '@/constants/neighborhood-options';
 import React from 'react';
-import { Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { formatDate } from '@/utils/formatters';
+import { Text, TextInput, View } from 'react-native';
 
 interface DropdownOption {
   label: string;
@@ -15,18 +15,11 @@ interface DropdownOption {
 interface NeighborhoodEditProps {
   neighborhoodData: NeighborhoodData;
   editedData: EditedData;
-  dropdownOptions: {
-    households: DropdownOption[];
-    residents: DropdownOption[];
-    householdSize: DropdownOption[];
-    subsidenceDuration: DropdownOption[];
-  };
+  dropdownOptions: NeighborhoodDropdownOptions;
   onDropdownChange: (field: string, value: string) => void;
   onHazardToggle: (index: number) => void;
   onNotableInfoChange: (text: string) => void;
-  onAlternativeFocalChange: (field: string, value: string) => void;
-  onCancel: () => void;
-  onSubmit: () => void;
+  onAlternativeFocalChange: (field: string, text: string) => void;
 }
 
 const EditableDropdown = ({
@@ -34,49 +27,88 @@ const EditableDropdown = ({
   value,
   options,
   onChange,
+  showCustomInput = false,
+  onCustomValue,
 }: {
   label: string;
   value: string | number;
   options: DropdownOption[];
   onChange: (value: string) => void;
-}) => (
-  <View className="mb-4">
-    <Text className="text-gray-300 text-base font-geist-medium mb-2">
-      {label}
-    </Text>
-    <Dropdown
-      options={options}
-      selectedValue={String(value)}
-      onValueChange={onChange}
-      placeholder={`Select ${label.toLowerCase()}`}
-    />
-  </View>
-);
+  showCustomInput?: boolean;
+  onCustomValue?: (value: string) => void;
+}) => {
+  // For households and residents, the value is a number but options are ranges
+  // We need to find the matching range or use the value as-is for custom values
+  const getSelectedOption = () => {
+    if (typeof value === 'string' && value.includes('(custom)')) {
+      // Handle custom values
+      return { label: value, value: 'custom' };
+    }
+    
+    if (typeof value === 'number') {
+      // Find the range that contains this number
+      return options.find(option => {
+        if (option.value === 'custom') return false;
+        
+        const [min, max] = option.value.split('-').map(v => parseInt(v.replace(/,/g, '')));
+        return value >= min && value <= max;
+      });
+    }
+    
+    // For string values (like floodwater subsidence), do exact match
+    return options.find(option => option.value === String(value));
+  };
 
-const EditableTextArea = ({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (text: string) => void;
-}) => (
-  <View>
-    <Text className="text-gray-300 text-base font-geist-medium mb-2">
-      {label}
-    </Text>
-    <TextInput
-      className="border border-gray-600 rounded-lg font-geist-light bg-gray-800 px-3 py-3 text-white text-base min-h-[80px]"
-      value={value}
-      onChangeText={onChange}
-      multiline
-      textAlignVertical="top"
-      placeholder="Enter information..."
-      placeholderTextColor="#9CA3AF"
-    />
-  </View>
-);
+  const selectedOption = getSelectedOption();
+  const hasValue = value && value !== 0;
+  
+  // Create better placeholders based on the field type
+  const getPlaceholder = () => {
+    if (hasValue && selectedOption) {
+      return selectedOption.label;
+    }
+    
+    switch(label) {
+      case 'Approximate No. of Households':
+        return 'Select number of households';
+      case 'Approx. No. of Residents':
+        return 'Select number of residents';
+      case 'Floodwater Subsidence Duration':
+        return 'Select floodwater duration';
+      default:
+        return `Select ${label.toLowerCase()}`;
+    }
+  };
+
+  const handleCustomValue = (customValue: string) => {
+    if (onCustomValue) {
+      // Create a custom display label
+      const customLabel = label.includes('Households') 
+        ? `${customValue} households (custom)`
+        : `${customValue} residents (custom)`;
+      onCustomValue(customLabel);
+    }
+  };
+
+  // Use the selected option's value if found, otherwise use the original value
+  const dropdownValue = selectedOption?.value || String(value);
+
+  return (
+    <View className="mb-4">
+      <Text className="text-gray-300 text-base font-geist-medium mb-2">
+        {label}
+      </Text>
+      <Dropdown
+        options={options}
+        selectedValue={dropdownValue}
+        onValueChange={onChange}
+        placeholder={getPlaceholder()}
+        showCustomInput={showCustomInput}
+        onCustomValue={handleCustomValue}
+      />
+    </View>
+  );
+};
 
 const EditableTextField = ({
   label,
@@ -114,8 +146,6 @@ export const NeighborhoodEdit: React.FC<NeighborhoodEditProps> = ({
   onHazardToggle,
   onNotableInfoChange,
   onAlternativeFocalChange,
-  onCancel,
-  onSubmit,
 }) => {
   return (
     <>
@@ -127,12 +157,16 @@ export const NeighborhoodEdit: React.FC<NeighborhoodEditProps> = ({
             value={String(editedData.approxHouseholds)}
             options={dropdownOptions.households}
             onChange={(value) => onDropdownChange('approxHouseholds', value)}
+            showCustomInput={true}
+            onCustomValue={(customLabel) => onDropdownChange('approxHouseholds', customLabel)}
           />
           <EditableDropdown
             label="Approx. No. of Residents"
             value={String(editedData.approxResidents)}
             options={dropdownOptions.residents}
             onChange={(value) => onDropdownChange('approxResidents', value)}
+            showCustomInput={true}
+            onCustomValue={(customLabel) => onDropdownChange('approxResidents', customLabel)}
           />
           <EditableDropdown
             label="Floodwater Subsidence Duration"
@@ -158,10 +192,15 @@ export const NeighborhoodEdit: React.FC<NeighborhoodEditProps> = ({
           </View>
 
           <View className="mt-4">
-            <EditableTextArea
+            <AutosizeTextarea
               label="Other Notable Information"
               value={editedData.notableInfo}
-              onChange={onNotableInfoChange}
+              onChangeText={onNotableInfoChange}
+              placeholder="Enter any additional information about the neighborhood..."
+              minHeight={120}
+              maxHeight={350}
+              showResizeHandle={true}
+              helperText="You can resize this textarea by dragging the handle"
             />
           </View>
         </EditInfoCard>
@@ -197,36 +236,6 @@ export const NeighborhoodEdit: React.FC<NeighborhoodEditProps> = ({
             keyboardType="email-address"
           />
         </EditInfoCard>
-      </View>
-
-      {/* Submit/Cancel Buttons */}
-      <View className="px-6 mb-8">
-        <View className="flex-row gap-3">
-          <TouchableOpacity
-            className="flex-1 bg-gray-600 rounded-xl py-4 items-center"
-            onPress={onCancel}
-            activeOpacity={0.7}
-          >
-            <View className="flex-row items-center gap-2">
-              <X size={18} color="#ffffff" />
-              <Text className="text-white text-base font-geist-semibold">
-                Cancel
-              </Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity
-            className="flex-1 bg-green-500 rounded-xl py-4 items-center"
-            onPress={onSubmit}
-            activeOpacity={0.7}
-          >
-            <View className="flex-row items-center gap-2">
-              <Check size={18} color="#ffffff" />
-              <Text className="text-white text-base font-geist-semibold">
-                Submit
-              </Text>
-            </View>
-          </TouchableOpacity>
-        </View>
       </View>
     </>
   );

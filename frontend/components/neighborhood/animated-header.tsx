@@ -1,6 +1,6 @@
 import { NeighborhoodData } from "@/types/neighborhood";
 import { LinearGradient } from "expo-linear-gradient";
-import { Pencil, Radio } from "lucide-react-native";
+import { Check, Pencil, Radio, X } from "lucide-react-native";
 import { Text, TouchableOpacity, View } from "react-native";
 import Animated, {
   Extrapolation,
@@ -14,6 +14,8 @@ interface AnimatedHeaderProps {
   neighborhoodData: NeighborhoodData;
   isEditMode: boolean;
   onEditPress: () => void;
+  onCancelEdit?: () => void;
+  onSubmitEdit?: () => void;
 }
 
 export const AnimatedHeader = ({
@@ -21,6 +23,8 @@ export const AnimatedHeader = ({
   neighborhoodData,
   isEditMode,
   onEditPress,
+  onCancelEdit,
+  onSubmitEdit,
 }: AnimatedHeaderProps) => {
   // Sticky header background/border style (only shows when scrolled)
   const stickyHeaderStyle = useAnimatedStyle(() => {
@@ -91,7 +95,8 @@ export const AnimatedHeader = ({
               {neighborhoodData.coordinates.longitude}
             </Text>
           </View>
-          {!isEditMode && (
+          {/* Edit Button or Cancel/Submit Buttons */}
+          {!isEditMode ? (
             <TouchableOpacity
               className="bg-blue-500 rounded-lg p-3"
               onPress={onEditPress}
@@ -99,6 +104,23 @@ export const AnimatedHeader = ({
             >
               <Pencil size={20} color="#ffffff" />
             </TouchableOpacity>
+          ) : (
+            <View className="flex-row gap-2">
+              <TouchableOpacity
+                className="bg-gray-600 rounded-lg p-3"
+                onPress={onCancelEdit}
+                activeOpacity={0.7}
+              >
+                <X size={18} color="#ffffff" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                className="bg-green-500 rounded-lg p-3"
+                onPress={onSubmitEdit}
+                activeOpacity={0.7}
+              >
+                <Check size={18} color="#ffffff" />
+              </TouchableOpacity>
+            </View>
           )}
         </View>
       </Animated.View>
@@ -110,12 +132,16 @@ interface StaticHeaderProps {
   neighborhoodData: NeighborhoodData;
   isEditMode: boolean;
   onEditPress: () => void;
+  onCancelEdit?: () => void;
+  onSubmitEdit?: () => void;
 }
 
 export const StaticHeader = ({
   neighborhoodData,
   isEditMode,
   onEditPress,
+  onCancelEdit,
+  onSubmitEdit,
 }: StaticHeaderProps) => {
   return (
     <View className="px-6 pb-4">
@@ -139,8 +165,8 @@ export const StaticHeader = ({
                 {neighborhoodData.coordinates.longitude}
               </Text>
             </View>
-            {/* Edit Button */}
-            {!isEditMode && (
+            {/* Edit Button or Cancel/Submit Buttons */}
+            {!isEditMode ? (
               <TouchableOpacity
                 className="bg-blue-500 rounded-lg p-3"
                 onPress={onEditPress}
@@ -148,6 +174,23 @@ export const StaticHeader = ({
               >
                 <Pencil size={20} color="#ffffff" />
               </TouchableOpacity>
+            ) : (
+              <View className="flex-row gap-2">
+                <TouchableOpacity
+                  className="bg-gray-600 rounded-lg p-3"
+                  onPress={onCancelEdit}
+                  activeOpacity={0.7}
+                >
+                  <X size={18} color="#ffffff" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  className="bg-green-500 rounded-lg p-3"
+                  onPress={onSubmitEdit}
+                  activeOpacity={0.7}
+                >
+                  <Check size={18} color="#ffffff" />
+                </TouchableOpacity>
+              </View>
             )}
           </View>
         </LinearGradient>

@@ -105,8 +105,6 @@ export default function AboutNeighborhoodScreen() {
           onHazardToggle={handleHazardToggle}
           onNotableInfoChange={handleNotableInfoChange}
           onAlternativeFocalChange={handleAlternativeFocalChange}
-          onCancel={handleCancelEdit}
-          onSubmit={handleSubmitEdit}
         />
       );
     }
@@ -167,6 +165,8 @@ export default function AboutNeighborhoodScreen() {
               neighborhoodData={neighborhoodData}
               isEditMode={isEditMode}
               onEditPress={handleEditPress}
+              onCancelEdit={handleCancelEdit}
+              onSubmitEdit={handleSubmitEdit}
             />
           )}
 
@@ -193,6 +193,8 @@ export default function AboutNeighborhoodScreen() {
                 neighborhoodData={neighborhoodData}
                 isEditMode={isEditMode}
                 onEditPress={handleEditPress}
+                onCancelEdit={handleCancelEdit}
+                onSubmitEdit={handleSubmitEdit}
               />
             )}
 
