@@ -47,6 +47,9 @@ class AuthService {
     try {
       console.log('🔐 Attempting login with:', credentials.emailOrNumber);
 
+      // Clear any existing token to ensure clean login
+      await AsyncStorage.removeItem(TOKEN_KEY);
+
       // Trim and normalize identifier to avoid whitespace/formatting issues
       const identifier = String(credentials.emailOrNumber || '').trim();
       // Remove common separators from phone numbers (spaces, dashes)

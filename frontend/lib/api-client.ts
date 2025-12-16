@@ -21,20 +21,33 @@ export async function apiFetch<T = any>(
   // Get token from AsyncStorage
   const token = await AsyncStorage.getItem(TOKEN_KEY);
 
+  // Public endpoints that should not include auth tokens
+  const publicEndpoints = [
+    '/focal/login',
+    '/focal/register',
+    '/focal/verify',
+    '/focal/resend',
+  ];
+  const isPublicEndpoint = publicEndpoints.some((pubEndpoint) =>
+    endpoint.startsWith(pubEndpoint),
+  );
+
   const url = `${API_BASE_URL}${endpoint}`;
   console.log(`📡 API Request: ${options.method || 'GET'} ${url}`);
-  if (token) {
+  if (token && !isPublicEndpoint) {
     console.log('🔑 Token found, adding to headers');
+  } else if (isPublicEndpoint) {
+    console.log('🔓 Public endpoint, no auth required');
   } else {
-    console.log('🔓 No token found (login/public endpoint)');
+    console.log('🔓 No token found');
   }
 
   const res = await fetch(url, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      // Only add Authorization header if token exists
-      ...(token && { Authorization: `Bearer ${token}` }),
+      // Only add Authorization header if token exists AND not a public endpoint
+      ...(token && !isPublicEndpoint && { Authorization: `Bearer ${token}` }),
       ...(options.headers || {}),
     },
   });
