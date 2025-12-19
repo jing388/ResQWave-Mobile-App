@@ -1,5 +1,14 @@
 import { InfoSheet } from '@/components/main/info-sheet';
 import { LayersButton } from '@/components/main/layers-button';
+import MapStyleSheet, { MapStyle } from '@/components/main/map-style-sheet';
+import {
+  PublicTransportOverlay,
+  TrafficOverlay,
+  CyclingOverlay,
+  Buildings3DOverlay,
+  WildfiresOverlay,
+  AirQualityOverlay,
+} from '@/components/main/map-overlays';
 import { ChatbotButton } from '@/components/main/chatbot-button';
 import { LocationButton } from '@/components/main/your-location-button';
 import { Avatar } from '@/components/ui/avatar';
@@ -28,6 +37,7 @@ import {
 } from 'react-native';
 import MapView, { Circle, Marker, Region, UrlTile } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BottomSheetModalProvider, BottomSheetModal } from '@gorhom/bottom-sheet';
 
 const { width, height } = Dimensions.get('window');
 
@@ -54,6 +64,14 @@ export default function HomeScreen() {
   const [selectedMarker, setSelectedMarker] = useState<MarkerData | null>(null);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [activeMarkerId, setActiveMarkerId] = useState<string | null>(null);
+  const [currentMapStyle, setCurrentMapStyle] = useState<MapStyle>({
+    id: 'default',
+    name: 'Default',
+    urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    description: 'Standard street map view'
+  });
+  const [enabledMapDetails, setEnabledMapDetails] = useState<Set<string>>(new Set());
+  const mapStyleSheetRef = useRef<BottomSheetModal | null>(null);
 
   // Pinned locations for search (derived from markers)
   const pinnedLocations = markers.map((marker) => ({
@@ -192,14 +210,67 @@ export default function HomeScreen() {
     }
   };
 
+  const handleMapStyleSelect = (style: MapStyle) => {
+    setCurrentMapStyle(style);
+  };
+
+  const handleMapDetailToggle = (detailId: string, enabled: boolean) => {
+    setEnabledMapDetails(prev => {
+      const newSet = new Set(prev);
+      if (enabled) {
+        newSet.add(detailId);
+      } else {
+        newSet.delete(detailId);
+      }
+      return newSet;
+    });
+
+    // Handle specific map detail functionalities
+    switch (detailId) {
+      case 'public-transport':
+        console.log(`Public Transport layer ${enabled ? 'enabled' : 'disabled'}`);
+        // TODO: Implement public transport overlay
+        break;
+      case 'traffic':
+        console.log(`Traffic layer ${enabled ? 'enabled' : 'disabled'}`);
+        // TODO: Implement traffic overlay
+        break;
+      case 'cycling':
+        console.log(`Cycling routes ${enabled ? 'enabled' : 'disabled'}`);
+        // TODO: Implement cycling routes overlay
+        break;
+      case '3d':
+        console.log(`3D view ${enabled ? 'enabled' : 'disabled'}`);
+        // TODO: Implement 3D buildings view
+        break;
+      case 'street-view':
+        console.log(`Street view ${enabled ? 'enabled' : 'disabled'}`);
+        // TODO: Implement street view functionality
+        break;
+      case 'wildfires':
+        console.log(`Wildfires layer ${enabled ? 'enabled' : 'disabled'}`);
+        // TODO: Implement wildfires overlay
+        break;
+      case 'air-quality':
+        console.log(`Air quality layer ${enabled ? 'enabled' : 'disabled'}`);
+        // TODO: Implement air quality overlay
+        break;
+    }
+  };
+
+  const handleLayersPress = () => {
+    mapStyleSheetRef.current?.present();
+  };
+
 
   return (
-    <ThemedView style={styles.container}>
-      <StatusBar
-        barStyle="light-content"
-        backgroundColor="transparent"
-        translucent
-      />
+    <BottomSheetModalProvider>
+      <ThemedView style={styles.container}>
+        <StatusBar
+          barStyle="light-content"
+          backgroundColor="transparent"
+          translucent
+        />
 
       {/* Loading Overlay */}
       {isLoading && (
@@ -223,11 +294,19 @@ export default function HomeScreen() {
         loadingBackgroundColor={colors.background}
       >
         <UrlTile
-          urlTemplate="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          urlTemplate={currentMapStyle.urlTemplate}
           maximumZ={19}
           flipY={false}
           tileSize={256}
         />
+
+        {/* Map Detail Overlays */}
+        <PublicTransportOverlay visible={enabledMapDetails.has('public-transport')} />
+        <TrafficOverlay visible={enabledMapDetails.has('traffic')} />
+        <CyclingOverlay visible={enabledMapDetails.has('cycling')} />
+        <Buildings3DOverlay visible={enabledMapDetails.has('3d')} />
+        <WildfiresOverlay visible={enabledMapDetails.has('wildfires')} />
+        <AirQualityOverlay visible={enabledMapDetails.has('air-quality')} />
 
         {/* Dynamically render all markers and their circles */}
         {markers.map((marker) => {
@@ -324,11 +403,7 @@ export default function HomeScreen() {
         style={{ bottom: 0 }}
       >
         <LocationButton onPress={handleCenterOnUser} />
-        <LayersButton
-          onPress={() => {
-            console.log('Layers pressed');
-          }}
-        />
+        <LayersButton onPress={handleLayersPress} />
         <ChatbotButton
           onPress={() => {
             router.push('/chatbot' as any);
@@ -343,7 +418,17 @@ export default function HomeScreen() {
         onClose={hideBottomSheet}
         onMoreInfo={handleMoreInfo}
       />
-    </ThemedView>
+
+      {/* Map Style Bottom Sheet */}
+      <MapStyleSheet
+        bottomSheetRef={mapStyleSheetRef}
+        onStyleSelect={handleMapStyleSelect}
+        currentStyleId={currentMapStyle.id}
+        onMapDetailToggle={handleMapDetailToggle}
+        enabledMapDetails={enabledMapDetails}
+      />
+      </ThemedView>
+    </BottomSheetModalProvider>
   );
 }
 
