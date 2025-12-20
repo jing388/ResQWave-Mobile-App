@@ -14,8 +14,6 @@ import { LocationButton } from '@/components/main/your-location-button';
 import { Avatar } from '@/components/ui/avatar';
 import { SearchField } from '@/components/ui/location-search-field';
 import { ThemedView } from '@/components/ui/themed-view';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useNeighborhoods } from '@/hooks/use-neighborhoods';
 import { MarkerData } from '@/types/neighborhood';
 import {
@@ -35,7 +33,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import MapView, { Circle, Marker, Region, UrlTile } from 'react-native-maps';
+import MapView, { Circle, Marker, Region } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomSheetModalProvider, BottomSheetModal } from '@gorhom/bottom-sheet';
 
@@ -46,10 +44,8 @@ const LATITUDE_DELTA = 0.005;
 const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO;
 
 export default function HomeScreen() {
-  const colorScheme = useColorScheme() || 'light';
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
-  const colors = Colors[colorScheme];
 
   // Fetch neighborhoods from backend
   const { markers, ownNeighborhood, isLoading } = useNeighborhoods();
@@ -71,6 +67,7 @@ export default function HomeScreen() {
     description: 'Standard street map view'
   });
   const [enabledMapDetails, setEnabledMapDetails] = useState<Set<string>>(new Set());
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const mapStyleSheetRef = useRef<BottomSheetModal | null>(null);
 
   // Pinned locations for search (derived from markers)
@@ -279,27 +276,20 @@ export default function HomeScreen() {
         </View>
       )}
 
+      {/* Map */}
       <MapView
         ref={mapRef}
         style={styles.map}
-        initialRegion={region}
+        region={region}
         onRegionChangeComplete={onRegionChangeComplete}
         showsUserLocation={true}
         showsMyLocationButton={false}
-        showsCompass={false}
-        toolbarEnabled={false}
-        rotateEnabled={false}
-        loadingEnabled={true}
-        loadingIndicatorColor={colors.tint}
-        loadingBackgroundColor={colors.background}
+        mapType="standard"
+        scrollEnabled={!isDropdownOpen}
+        zoomEnabled={!isDropdownOpen}
+        pitchEnabled={!isDropdownOpen}
+        rotateEnabled={!isDropdownOpen}
       >
-        <UrlTile
-          urlTemplate={currentMapStyle.urlTemplate}
-          maximumZ={19}
-          flipY={false}
-          tileSize={256}
-        />
-
         {/* Map Detail Overlays */}
         <PublicTransportOverlay visible={enabledMapDetails.has('public-transport')} />
         <TrafficOverlay visible={enabledMapDetails.has('traffic')} />
@@ -386,6 +376,7 @@ export default function HomeScreen() {
             placeholder="Search locations"
             locations={pinnedLocations}
             onLocationSelect={handleLocationSelect}
+            onDropdownOpen={setIsDropdownOpen}
           />
           <Avatar
             size="md"
