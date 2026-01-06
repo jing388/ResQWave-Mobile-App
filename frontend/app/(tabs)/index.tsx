@@ -164,6 +164,10 @@ export default function HomeScreen() {
   };
 
   const handleMarkerPress = (marker: MarkerData) => {
+    console.log('📍 [handleMarkerPress] Marker pressed:', marker.neighborhoodID);
+    console.log('📍 [handleMarkerPress] Marker TYPE:', marker.type);
+    console.log('📍 [handleMarkerPress] Full marker:', JSON.stringify(marker, null, 2));
+    
     setActiveMarkerId(marker.id);
 
     mapRef.current?.animateToRegion(
@@ -187,12 +191,25 @@ export default function HomeScreen() {
   };
 
   const handleMoreInfo = async (markerData: MarkerData) => {
-    console.log('More info about:', markerData.neighborhoodID);
+    console.log('🔍 [index] ========================================');
+    console.log('🔍 [index] More info requested for:', markerData.neighborhoodID);
+    console.log('🔍 [index] Marker ID (database ID):', markerData.id);
+    console.log('🔍 [index] Full marker data:', JSON.stringify(markerData, null, 2));
+
+    // Close the info sheet first for better UX
+    hideBottomSheet();
 
     // Save the selected neighborhood ID for persistence
+    console.log('💾 [index] Saving neighborhood ID to persistence:', markerData.id);
     await saveLastSelectedNeighborhood(markerData.id);
+    console.log('✅ [index] Saved neighborhood ID:', markerData.id);
+
+    // Small delay to ensure state is cleared
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     // Navigate to the About Neighborhood page with the neighborhood ID
+    console.log('🔍 [index] Navigating to about-neighborhood with ID:', markerData.id);
+    console.log('🔍 [index] ========================================');
     router.push({
       pathname: '/(tabs)/about-neighborhood',
       params: { neighborhoodId: markerData.id }

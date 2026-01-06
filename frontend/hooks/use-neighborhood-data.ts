@@ -51,25 +51,57 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
   });
 
   // Fetch neighborhood data from backend
+  // For data privacy compliance, we ALWAYS fetch the user's OWN neighborhood
+  // The neighborhoodId parameter is only used to verify it matches the user's own neighborhood
   useEffect(() => {
     const loadData = async () => {
+      console.log('🔄 [use-neighborhood-data] ========================================');
+      console.log('🔄 [use-neighborhood-data] Effect triggered with neighborhoodId:', neighborhoodId);
+      
       // Don't fetch if neighborhoodId is still being determined
       if (neighborhoodId === undefined) {
-        console.log('NeighborhoodId is undefined, skipping fetch');
+        console.log('🔍 [use-neighborhood-data] NeighborhoodId is undefined, skipping fetch');
+        console.log('🔄 [use-neighborhood-data] ========================================');
         setIsLoading(false);
         return;
       }
 
       try {
         setIsLoading(true);
-        console.log('Fetching neighborhood data for:', neighborhoodId);
-        const data = await fetchNeighborhoodData(neighborhoodId);
+        // Clear previous data to prevent showing stale data
+        setNeighborhoodData(null);
+        
+        // IMPORTANT: For data privacy, we ALWAYS fetch the user's OWN neighborhood
+        // by passing null/undefined, which uses the /neighborhood/own endpoint
+        console.log('🔍 [use-neighborhood-data] Fetching user\'s OWN neighborhood data');
+        console.log('🔍 [use-neighborhood-data] Requested ID:', neighborhoodId);
+        console.log('🔍 [use-neighborhood-data] Calling fetchNeighborhoodData with null (own neighborhood)...');
+        
+        // Always fetch own neighborhood for data privacy compliance
+        const data = await fetchNeighborhoodData(null);
 
         if (!data) {
-          console.error('No neighborhood data returned');
+          console.error('❌ No neighborhood data returned for user\'s own neighborhood');
+          setNeighborhoodData(null);
           return;
         }
 
+        // Verify if the requested neighborhood matches the user's own neighborhood
+        if (neighborhoodId && data.id !== neighborhoodId) {
+          console.warn('⚠️ [use-neighborhood-data] User requested:', neighborhoodId, 'but owns:', data.id);
+          console.warn('⚠️ [use-neighborhood-data] Access denied - can only view own neighborhood');
+          // Still show own neighborhood data (don't allow viewing other neighborhoods)
+        }
+
+        console.log('✅ [use-neighborhood-data] Successfully fetched data for:', data.id, data.name);
+        console.log('📊 [use-neighborhood-data] Full data:', JSON.stringify({
+          id: data.id,
+          name: data.name,
+          terminalID: data.terminalID,
+          approxResidents: data.approxResidents,
+          focalPerson: data.focalPerson.name
+        }, null, 2));
+        console.log('🔄 [use-neighborhood-data] ========================================');
         setNeighborhoodData(data);
 
         // Initialize edited data with fetched data
@@ -94,15 +126,20 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
             email: data.alternativeFocalPerson.email || '',
           },
         });
-      } catch (error) {
-        console.error('Error fetching neighborhood data:', error);
-        // Check if it's a 404 error (no neighborhood assigned)
-        if (error instanceof Error && error.message.includes('Neighborhood Not Found')) {
-          console.log('User has no neighborhood assigned - this is expected for new users');
+      } catch (error: any) {
+        console.error('❌ [use-neighborhood-data] Error fetching neighborhood data:', error);
+        console.error('❌ [use-neighborhood-data] Error message:', error?.message);
+        
+        // Check if it's a 404 error (neighborhood doesn't exist)
+        if (error instanceof Error && (error.message.includes('Neighborhood Not Found') || error.message.includes('404'))) {
+          console.error('❌ [use-neighborhood-data] Neighborhood not found:', neighborhoodId);
+          console.error('❌ [use-neighborhood-data] This neighborhood may not exist in the database');
         } else {
-          console.error('Unexpected error fetching neighborhood data:', error);
+          console.error('❌ [use-neighborhood-data] Unexpected error:', error);
         }
-        // Don't throw error, just leave neighborhoodData as null
+        
+        // Set neighborhood data to null to show "No Neighborhood Selected" message
+        setNeighborhoodData(null);
       } finally {
         setIsLoading(false);
       }

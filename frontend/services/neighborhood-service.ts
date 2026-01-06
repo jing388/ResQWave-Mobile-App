@@ -69,17 +69,21 @@ const parseAddress = (
  */
 export const fetchOwnNeighborhood = async (): Promise<MarkerData | null> => {
   try {
+    console.log('🔍 [fetchOwnNeighborhood] Starting fetch from /neighborhood/map/own...');
     const data = await apiFetch<BackendOwnNeighborhood>(
       '/neighborhood/map/own',
     );
+    
+    console.log('🔍 [fetchOwnNeighborhood] Response received:', JSON.stringify(data, null, 2));
 
     const addressData = parseAddress(data.address);
     if (!addressData) {
-      console.warn('Own neighborhood has no valid coordinates');
+      console.warn('❌ [fetchOwnNeighborhood] Own neighborhood has no valid coordinates');
+      console.warn('❌ [fetchOwnNeighborhood] Address was:', data.address);
       return null;
     }
 
-    return {
+    const ownMarker = {
       id: data.neighborhoodID,
       latitude: addressData.latitude,
       longitude: addressData.longitude,
@@ -87,12 +91,18 @@ export const fetchOwnNeighborhood = async (): Promise<MarkerData | null> => {
       terminalID: data.terminalID || '',
       address: addressData.address,
       dateRegistered: data.createdDate || '',
-      type: 'own',
+      type: 'own' as const,
       focalPersonName: data.focalPerson.name,
       hazards: data.hazards || [],
     };
+    
+    console.log('✅ [fetchOwnNeighborhood] Created marker with type:', ownMarker.type);
+    console.log('✅ [fetchOwnNeighborhood] Neighborhood ID:', ownMarker.neighborhoodID);
+    
+    return ownMarker;
   } catch (error) {
-    console.error('Error fetching own neighborhood:', error);
+    console.error('❌ [fetchOwnNeighborhood] Error fetching own neighborhood:', error);
+    console.error('❌ [fetchOwnNeighborhood] Error details:', JSON.stringify(error, null, 2));
     return null;
   }
 };
@@ -140,20 +150,36 @@ export const fetchNeighborhoodDetails = async (
   neighborhoodId?: string | null,
 ): Promise<NeighborhoodData | null> => {
   try {
+    console.log('🌐 [neighborhood-service] ========================================');
+    console.log('🌐 [neighborhood-service] fetchNeighborhoodDetails called');
+    console.log('🌐 [neighborhood-service] Input neighborhoodId:', neighborhoodId);
+    console.log('🌐 [neighborhood-service] Type:', typeof neighborhoodId);
+    
     // If neighborhoodId is provided, fetch that specific neighborhood
     // Otherwise, fetch the user's own neighborhood
     const endpoint = neighborhoodId 
       ? `/neighborhood/${neighborhoodId}`
-      : '/neighborhood/map/own';
+      : '/neighborhood/own';
+    
+    console.log('🔍 [neighborhood-service] Endpoint:', endpoint);
     
     let data: any;
-    if (neighborhoodId) {
-      // Fetch specific neighborhood - different response structure
-      data = await apiFetch<BackendSpecificNeighborhood>(endpoint);
+    let isOwnEndpoint = !neighborhoodId;
+    
+    // Fetch the data
+    console.log('📡 [neighborhood-service] Fetching from endpoint:', endpoint);
+    data = await apiFetch<any>(endpoint);
+    console.log('✅ [neighborhood-service] Response received:', JSON.stringify(data, null, 2));
+
+    // Validation: Ensure we got the correct neighborhood
+    // Handle different response structures
+    const fetchedId = isOwnEndpoint ? data.neighborhoodID : data.id;
+    if (neighborhoodId && fetchedId !== neighborhoodId) {
+      console.error('❌ [neighborhood-service] MISMATCH! Requested:', neighborhoodId, 'but got:', fetchedId);
     } else {
-      // Fetch own neighborhood - different response structure  
-      data = await apiFetch<BackendNeighborhoodDetails>(endpoint);
+      console.log('✅ [neighborhood-service] Correct neighborhood:', fetchedId);
     }
+    console.log('🌐 [neighborhood-service] ========================================');
 
     const addressData = parseAddress(data.address);
 
@@ -170,17 +196,39 @@ export const fetchNeighborhoodDetails = async (
 
     // Handle different response structures based on the endpoint
     let households, residents, floodwaterSubsidence, hazards, otherInfo, focalPersonData;
-    let neighborhoodIdValue;
-    let createdDate, updatedDate;
+    let neighborhoodIdValue, createdDate, updatedDate;
     
-    if (neighborhoodId) {
-      // Specific neighborhood response (getNeighborhood)
+    if (isOwnEndpoint) {
+      // /neighborhood/own endpoint response structure (viewAboutYourNeighborhood)
+      households = parseInt(data.noOfHouseholds) || 0;
+      residents = parseInt(data.noOfResidents) || 0;
+      floodwaterSubsidence = data.floodwaterSubsidenceDuration || '';
+      hazards = data.hazards || [];
+      otherInfo = data.otherInformation || null;
+      neighborhoodIdValue = data.neighborhoodID;
+      createdDate = data.createdDate;
+      updatedDate = data.updatedDate;
+      
+      // focalPerson is already in the correct structure
+      focalPersonData = {
+        name: data.focalPerson?.name || '',
+        number: data.focalPerson?.number || '',
+        email: data.focalPerson?.email || '',
+        photo: data.focalPerson?.photo || null,
+        alternativeFPFirstName: data.focalPerson?.alternativeFPFirstName || null,
+        alternativeFPLastName: data.focalPerson?.alternativeFPLastName || null,
+        alternativeFPNumber: data.focalPerson?.alternativeFPNumber || null,
+        alternativeFPEmail: data.focalPerson?.alternativeFPEmail || null,
+        alternativeFPImage: data.focalPerson?.alternativeFPImage || null,
+      };
+    } else {
+      // /neighborhood/:id endpoint response structure (getNeighborhood)
       households = parseInt(data.noOfHouseholds) || 0;
       residents = parseInt(data.noOfResidents) || 0;
       floodwaterSubsidence = data.floodSubsideHours || '';
       hazards = data.hazards || [];
       otherInfo = data.otherInformation || null;
-      neighborhoodIdValue = data.id; // Use the database ID
+      neighborhoodIdValue = data.id;
       createdDate = data.createdAt;
       updatedDate = data.updatedAt;
       
@@ -196,23 +244,10 @@ export const fetchNeighborhoodDetails = async (
         alternativeFPEmail: data.focalPerson?.altEmail || null,
         alternativeFPImage: data.focalPerson?.alternativeFPImage || null,
       };
-    } else {
-      // Own neighborhood response (viewAboutYourNeighborhood)
-      households = parseInt(data.noOfHouseholds) || 0;
-      residents = parseInt(data.noOfResidents) || 0;
-      floodwaterSubsidence = data.floodwaterSubsidenceDuration || '';
-      hazards = data.hazards || [];
-      otherInfo = data.otherInformation || null;
-      neighborhoodIdValue = data.neighborhoodID; // Use neighborhoodID for own neighborhood
-      createdDate = data.createdDate;
-      updatedDate = data.updatedDate;
-      
-      // Use existing focal person structure
-      focalPersonData = data.focalPerson;
     }
-
-    const avgSize =
-      households > 0 ? parseFloat((residents / households).toFixed(1)) : 0;
+    
+    // Calculate average household size
+    const avgSize = households > 0 ? parseFloat((residents / households).toFixed(2)) : 0;
 
     return {
       id: neighborhoodIdValue,
@@ -250,8 +285,16 @@ export const fetchNeighborhoodDetails = async (
         avatar: focalPersonData.alternativeFPImage,
       },
     };
-  } catch (error) {
-    console.error('Error fetching neighborhood details:', error);
+  } catch (error: any) {
+    console.error('❌ [neighborhood-service] Error fetching neighborhood details:', error);
+    console.error('❌ [neighborhood-service] Error message:', error.message);
+    console.error('❌ [neighborhood-service] Error status:', error.status);
+    
+    // If it's a 404, the neighborhood doesn't exist
+    if (error.message && error.message.includes('404')) {
+      console.error('❌ [neighborhood-service] Neighborhood not found in database:', neighborhoodId);
+    }
+    
     return null;
   }
 };
@@ -278,7 +321,8 @@ export const updateNeighborhoodData = async (
   params: UpdateNeighborhoodDataParams,
 ): Promise<void> => {
   try {
-    console.log('Submitting edited data:', params);
+    console.log('📝 [neighborhood-service] Updating neighborhood:', params.neighborhoodId);
+    console.log('📝 [neighborhood-service] Update data:', params);
 
     await apiFetch(`/neighborhood/${params.neighborhoodId}`, {
       method: 'PUT',
@@ -290,8 +334,10 @@ export const updateNeighborhoodData = async (
         otherInformation: params.notableInfo.join('; '),
       }),
     });
+    
+    console.log('✅ [neighborhood-service] Successfully updated neighborhood:', params.neighborhoodId);
   } catch (error) {
-    console.error('Error updating neighborhood data:', error);
+    console.error('❌ [neighborhood-service] Error updating neighborhood:', params.neighborhoodId, error);
     throw error;
   }
 };
