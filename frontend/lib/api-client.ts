@@ -45,7 +45,11 @@ export async function apiFetch<T = any>(
   const res = await fetch(url, {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      // Only set Content-Type for non-FormData requests
+      ...(options.body instanceof FormData 
+        ? {} 
+        : { 'Content-Type': 'application/json' }
+      ),
       // Only add Authorization header if token exists AND not a public endpoint
       ...(token && !isPublicEndpoint && { Authorization: `Bearer ${token}` }),
       ...(options.headers || {}),
