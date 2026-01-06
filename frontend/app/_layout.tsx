@@ -58,7 +58,6 @@ export default function RootLayout() {
             screenOptions={{
               headerShown: false,
               animation: 'slide_from_right',
-              contentStyle: { backgroundColor: 'transparent' },
             }}
           >
             <Stack.Screen
@@ -144,6 +143,14 @@ export default function RootLayout() {
             />
             <Stack.Screen
               name="profile/email"
+              options={{
+                headerShown: false,
+                presentation: 'transparentModal',
+                animation: 'slide_from_right',
+              }}
+            />
+            <Stack.Screen
+              name="chatbot/index"
               options={{
                 headerShown: false,
                 presentation: 'transparentModal',
