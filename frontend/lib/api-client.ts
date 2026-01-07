@@ -27,6 +27,8 @@ export async function apiFetch<T = any>(
     '/focal/register',
     '/focal/verify',
     '/focal/resend',
+    '/chatbot/chat',
+    '/chatbot/translate',
   ];
   const isPublicEndpoint = publicEndpoints.some((pubEndpoint) =>
     endpoint.startsWith(pubEndpoint),

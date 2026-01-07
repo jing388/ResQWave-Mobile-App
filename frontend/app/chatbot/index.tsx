@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
-import { Send, Info, SquarePen } from 'lucide-react-native';
+import { Send, Info, SquarePen, ArrowLeft } from 'lucide-react-native';
 import React, { useState, useRef, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { apiFetch } from '@/lib/api-client';
 import {
   View,
   Text,
@@ -63,10 +64,51 @@ export default function ChatbotScreen() {
             timestamp: new Date(msg.timestamp),
           }));
           setMessages(messagesWithDates);
+          setGreetingShown(true);
           // Scroll to bottom after loading messages
           setTimeout(() => {
             scrollViewRef.current?.scrollToEnd({ animated: false });
           }, 100);
+        } else {
+          // No saved messages, show initial greeting
+          setIsTyping(true);
+          setGreetingShown(false);
+
+          const greetingText =
+            "Hi, I'm Reskwie! Think of me like an assistant who's here to help you get to know ResQWave more!\n\nSo, what can I help you with today?";
+
+          // Fetch quick actions from backend
+          (async () => {
+            try {
+              const data = await apiFetch<{ quickActions?: string[] }>('/chatbot/chat', {
+                method: 'POST',
+                body: JSON.stringify({ text: 'Generate quick actions for greeting', mode: 'quickActions' }),
+              });
+              if (Array.isArray(data.quickActions) && data.quickActions.length) {
+                setQuickActions(data.quickActions.slice(0, 3));
+              }
+            } catch (_err) {
+              console.error('Quick actions error:', _err);
+              // Fallback quick actions
+              setQuickActions([
+                'What is ResQWave for?',
+                'How do I send an SOS alert?',
+                'How to use the terminal?',
+              ]);
+            }
+          })();
+
+          setTimeout(() => {
+            const greetingMessage: Message = {
+              id: '1',
+              text: greetingText,
+              sender: 'bot',
+              timestamp: new Date(),
+            };
+            setMessages([greetingMessage]);
+            setIsTyping(false);
+            setGreetingShown(true);
+          }, 1000);
         }
       } catch (error) {
         console.error('Error loading messages:', error);
@@ -125,11 +167,18 @@ export default function ChatbotScreen() {
     }
   }, [isTyping]);
 
-  const quickActions = [
-    'What is ResQWave for?',
-    'How do I edit our neighborhood information?',
-    'How to use the ResQWave Terminal?',
-  ];
+  const [quickActions, setQuickActions] = useState<string[]>([]);
+  const [greetingShown, setGreetingShown] = useState(false);
+
+  // Auto-scroll when quick actions appear
+  useEffect(() => {
+    if (quickActions.length > 0 && greetingShown) {
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 200);
+    }
+  }, [quickActions, greetingShown]);
+
   const handleStopResponse = () => {
     if (botTimeoutRef.current) {
       clearTimeout(botTimeoutRef.current);
@@ -153,6 +202,8 @@ export default function ChatbotScreen() {
     setIsTyping(false);
     setTranslatingMessages(new Set());
     setShowTranslation(new Set());
+    setQuickActions([]);
+    setGreetingShown(true);
     if (botTimeoutRef.current) {
       clearTimeout(botTimeoutRef.current);
       botTimeoutRef.current = null;
@@ -163,13 +214,33 @@ export default function ChatbotScreen() {
     } catch (error) {
       console.error('Error clearing messages:', error);
     }
+
+    // Fetch new quick actions
+    try {
+      const data = await apiFetch<{ quickActions?: string[] }>('/chatbot/chat', {
+        method: 'POST',
+        body: JSON.stringify({ text: 'Generate quick actions for greeting', mode: 'quickActions' }),
+      });
+      if (Array.isArray(data.quickActions) && data.quickActions.length) {
+        setQuickActions(data.quickActions.slice(0, 3));
+      }
+    } catch (_err) {
+      console.error('Quick actions error:', _err);
+      // Fallback quick actions
+      setQuickActions([
+        'What is ResQWave for?',
+        'How do I send an SOS alert?',
+        'How to use the terminal?',
+      ]);
+    }
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (inputText.trim()) {
+      const textToSend = inputText;
       const newMessage: Message = {
         id: Date.now().toString(),
-        text: inputText,
+        text: textToSend,
         sender: 'user',
         timestamp: new Date(),
       };
@@ -188,12 +259,21 @@ export default function ChatbotScreen() {
         scrollViewRef.current?.scrollToEnd({ animated: true });
       }, 100);
 
-      // Simulate bot response
-      botTimeoutRef.current = setTimeout(() => {
+      // Hide quick actions immediately
+      setQuickActions([]);
+
+      try {
+        // Call backend API for chatbot response
+        const data = await apiFetch<{ response?: string }>('/chatbot/chat', {
+          method: 'POST',
+          body: JSON.stringify({ text: textToSend, mode: 'main' }),
+        });
+        const aiResponse = data?.response || '[No response]';
+
         setIsTyping(false);
         const botResponse: Message = {
           id: (Date.now() + 1).toString(),
-          text: "I'm processing your request. This is a demo response!",
+          text: aiResponse,
           sender: 'bot',
           timestamp: new Date(),
         };
@@ -202,18 +282,62 @@ export default function ChatbotScreen() {
         // Scroll to bottom after bot response
         setTimeout(() => {
           scrollViewRef.current?.scrollToEnd({ animated: true });
-        }, 50);
-        botTimeoutRef.current = null;
-      }, 1500);
+        }, 100);
+
+        // Fetch quick actions (fire-and-forget)
+        (async () => {
+          try {
+            const qaData = await apiFetch<{ quickActions?: string[] }>('/chatbot/chat', {
+              method: 'POST',
+              body: JSON.stringify({ text: textToSend, mode: 'quickActions' }),
+            });
+            if (Array.isArray(qaData.quickActions)) {
+              setQuickActions(qaData.quickActions.slice(0, 3));
+              // Scroll again after quick actions load
+              setTimeout(() => {
+                scrollViewRef.current?.scrollToEnd({ animated: true });
+              }, 250);
+            }
+          } catch (err) {
+            console.error('Quick actions error:', err);
+          }
+        })();
+      } catch (error) {
+        console.error('Error calling backend chatbot:', error);
+        setIsTyping(false);
+        const botResponse: Message = {
+          id: (Date.now() + 1).toString(),
+          text: "I apologize, but I'm having trouble connecting right now. ResQWave is a LoRa-powered emergency communication system that helps communities during floods. Please try asking your question again, or contact our support team at resqwaveinfo@gmail.com for immediate assistance.",
+          sender: 'bot',
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, botResponse]);
+
+        // Show fallback quick actions
+        setQuickActions([
+          'What is ResQWave for?',
+          'How do I send an SOS alert?',
+          'How to use the terminal?',
+        ]);
+
+        // Scroll to bottom after error response and quick actions
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 250);
+      }
     }
   };
 
-  const handleTranslationToggle = (messageId: string) => {
+  const handleTranslationToggle = async (messageId: string) => {
     if (showTranslation.has(messageId)) {
       // Hide translation
       const newShowTranslation = new Set(showTranslation);
       newShowTranslation.delete(messageId);
       setShowTranslation(newShowTranslation);
+      // Scroll to show the message after toggling
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
     } else {
       // Check if translation exists
       const message = messages.find(m => m.id === messageId);
@@ -222,17 +346,27 @@ export default function ChatbotScreen() {
         const newShowTranslation = new Set(showTranslation);
         newShowTranslation.add(messageId);
         setShowTranslation(newShowTranslation);
+        // Scroll to show the message after toggling
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 100);
       } else {
         // Start translating
         const newTranslating = new Set(translatingMessages);
         newTranslating.add(messageId);
         setTranslatingMessages(newTranslating);
 
-        // Simulate translation API call
-        setTimeout(() => {
+        try {
+          // Call backend API for translation
+          const data = await apiFetch<{ translatedText?: string }>('/chatbot/translate', {
+            method: 'POST',
+            body: JSON.stringify({ text: message?.text || '' }),
+          });
+          const translatedText = data?.translatedText || '[Translation unavailable]';
+
           setMessages(prev => prev.map(m =>
             m.id === messageId
-              ? { ...m, translation: 'This is a demo translated text. Translation logic will be added later.' }
+              ? { ...m, translation: translatedText }
               : m
           ));
 
@@ -243,12 +377,22 @@ export default function ChatbotScreen() {
           const newShowTranslation = new Set(showTranslation);
           newShowTranslation.add(messageId);
           setShowTranslation(newShowTranslation);
-        }, 1000);
+
+          // Scroll to show the translated message
+          setTimeout(() => {
+            scrollViewRef.current?.scrollToEnd({ animated: true });
+          }, 150);
+        } catch (error) {
+          console.error('Translation error:', error);
+          const newTranslating = new Set(translatingMessages);
+          newTranslating.delete(messageId);
+          setTranslatingMessages(newTranslating);
+        }
       }
     }
   };
 
-  const handleQuickAction = (action: string) => {
+  const handleQuickAction = async (action: string) => {
     const newMessage: Message = {
       id: Date.now().toString(),
       text: action,
@@ -269,12 +413,21 @@ export default function ChatbotScreen() {
       scrollViewRef.current?.scrollToEnd({ animated: true });
     }, 100);
 
-    // Simulate bot response
-    botTimeoutRef.current = setTimeout(() => {
+    // Hide quick actions immediately
+    setQuickActions([]);
+
+    try {
+      // Call backend API for chatbot response
+      const data = await apiFetch<{ response?: string }>('/chatbot/chat', {
+        method: 'POST',
+        body: JSON.stringify({ text: action, mode: 'main' }),
+      });
+      const aiResponse = data?.response || '[No response]';
+
       setIsTyping(false);
       const botResponse: Message = {
         id: (Date.now() + 1).toString(),
-        text: "I'm processing your request. This is a demo response!",
+        text: aiResponse,
         sender: 'bot',
         timestamp: new Date(),
       };
@@ -283,9 +436,49 @@ export default function ChatbotScreen() {
       // Scroll to bottom after bot response
       setTimeout(() => {
         scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 50);
-      botTimeoutRef.current = null;
-    }, 1500);
+      }, 100);
+
+      // Fetch quick actions (fire-and-forget)
+      (async () => {
+        try {
+          const qaData = await apiFetch<{ quickActions?: string[] }>('/chatbot/chat', {
+            method: 'POST',
+            body: JSON.stringify({ text: action, mode: 'quickActions' }),
+          });
+          if (Array.isArray(qaData.quickActions)) {
+            setQuickActions(qaData.quickActions.slice(0, 3));
+            // Scroll again after quick actions load
+            setTimeout(() => {
+              scrollViewRef.current?.scrollToEnd({ animated: true });
+            }, 250);
+          }
+        } catch (err) {
+          console.error('Quick actions error:', err);
+        }
+      })();
+    } catch (error) {
+      console.error('Error calling backend chatbot:', error);
+      setIsTyping(false);
+      const botResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        text: "I apologize, but I'm having trouble connecting right now. ResQWave is a LoRa-powered emergency communication system that helps communities during floods. Please try asking your question again, or contact our support team at resqwaveinfo@gmail.com for immediate assistance.",
+        sender: 'bot',
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, botResponse]);
+
+      // Show fallback quick actions
+      setQuickActions([
+        'What is ResQWave for?',
+        'How do I send an SOS alert?',
+        'How to use the terminal?',
+      ]);
+
+      // Scroll to bottom after error response and quick actions
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 250);
+    }
   };
 
   return (
@@ -309,6 +502,30 @@ export default function ChatbotScreen() {
         activeOpacity={1}
         onPress={() => router.back()}
       />
+
+      {/* Back Button */}
+      <TouchableOpacity
+        onPress={() => router.back()}
+        style={{
+          position: 'absolute',
+          top: insets.top + 10,
+          left: 16,
+          zIndex: 20,
+          width: 40,
+          height: 40,
+          borderRadius: 5,
+          backgroundColor: '#161616',
+          alignItems: 'center',
+          justifyContent: 'center',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.3,
+          shadowRadius: 4,
+          elevation: 4,
+        }}
+      >
+        <ArrowLeft size={20} color="#FFFFFF" />
+      </TouchableOpacity>
 
       {/* Info Button */}
       <TouchableOpacity
@@ -405,9 +622,15 @@ export default function ChatbotScreen() {
             <ScrollView
               ref={scrollViewRef}
               style={{ flex: 1, paddingHorizontal: 20 }}
-              contentContainerStyle={{ paddingTop: 10, paddingBottom: 20 }}
+              contentContainerStyle={{
+                paddingTop: 10,
+                paddingBottom: 12,
+                flexGrow: 1,
+                justifyContent: 'space-between'
+              }}
               showsVerticalScrollIndicator={false}
             >
+              <View>
               {messages.map((message, index) => {
                 const prevMessage = index > 0 ? messages[index - 1] : null;
                 const currentTime = message.timestamp.toLocaleString('en-US', {
@@ -450,15 +673,10 @@ export default function ChatbotScreen() {
                       }}
                     >
                       <Text style={{ color: '#FFFFFF', fontSize: 14, lineHeight: 19 }}>
-                        {message.text}
+                        {message.sender === 'bot' && showTranslation.has(message.id) && message.translation
+                          ? message.translation
+                          : message.text}
                       </Text>
-                      {message.sender === 'bot' && showTranslation.has(message.id) && message.translation && (
-                        <View style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#404040' }}>
-                          <Text style={{ color: '#A3A3A3', fontSize: 13, lineHeight: 18 }}>
-                            {message.translation}
-                          </Text>
-                        </View>
-                      )}
                     </View>
                     {message.sender === 'bot' && (
                       <TouchableOpacity
@@ -496,30 +714,33 @@ export default function ChatbotScreen() {
                   </View>
                 </View>
               )}
-            </ScrollView>
+              </View>
 
-            {/* Quick Actions */}
-            <View style={{ paddingHorizontal: 20, paddingBottom: 6 }}>
-              {quickActions.map((action, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={{
-                    backgroundColor: '#2B2B2B',
-                    paddingHorizontal: 16,
-                    paddingVertical: 12,
-                    borderRadius: 6,
-                    marginBottom: 8,
-                    alignItems: 'center',
-                    opacity: isTyping ? 0.5 : 1,
-                  }}
-                  onPress={() => handleQuickAction(action)}
-                  activeOpacity={0.7}
-                  disabled={isTyping}
-                >
-                  <Text style={{ color: '#FFFFFF', fontSize: 13, lineHeight: 14, textAlign: 'center' }}>{action}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+              {/* Quick Actions - At bottom when minimal content, scrollable with messages */}
+              {greetingShown && quickActions.length > 0 && (
+                <View style={{ marginTop: 4, marginBottom: 8 }}>
+                  {quickActions.map((action, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={{
+                        backgroundColor: '#2B2B2B',
+                        paddingHorizontal: 16,
+                        paddingVertical: 12,
+                        borderRadius: 6,
+                        marginBottom: index === quickActions.length - 1 ? 0 : 8,
+                        alignItems: 'center',
+                        opacity: isTyping ? 0.5 : 1,
+                      }}
+                      onPress={() => handleQuickAction(action)}
+                      activeOpacity={0.7}
+                      disabled={isTyping}
+                    >
+                      <Text style={{ color: '#FFFFFF', fontSize: 13, lineHeight: 14, textAlign: 'center' }}>{action}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </ScrollView>
 
             {/* Input Area */}
             <View
