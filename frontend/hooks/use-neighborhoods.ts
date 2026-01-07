@@ -39,7 +39,17 @@ export const useNeighborhoods = (): UseNeighborhoodsReturn => {
       ]);
 
       console.log('✅ Own neighborhood:', own);
+      console.log('✅ Own neighborhood TYPE:', own?.type);
       console.log('✅ Other neighborhoods:', others.length);
+      
+      if (own) {
+        console.log('🔍 [useNeighborhoods] Own marker details:', {
+          id: own.id,
+          neighborhoodID: own.neighborhoodID,
+          type: own.type,
+          focalPerson: own.focalPersonName
+        });
+      }
 
       setOwnNeighborhood(own);
       setOtherNeighborhoods(others);
