@@ -5,6 +5,7 @@ import {
   BottomSheetModalProvider,
 } from '@gorhom/bottom-sheet';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import {
   Camera,
@@ -15,6 +16,7 @@ import {
 } from 'lucide-react-native';
 import React, { useRef, useState, useEffect } from 'react';
 import {
+  Alert,
   Platform,
   ScrollView,
   StatusBar,
@@ -23,7 +25,8 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getProfile, UserProfile } from '@/services/user-service';
+import { getProfile, updateProfilePicture, UserProfile } from '@/services/user-service';
+import { API_BASE_URL } from '@/lib/api-client';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -32,11 +35,30 @@ export default function ProfileScreen() {
   // User data state
   const [userData, setUserData] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   // Load user profile on mount
   useEffect(() => {
-    loadUserProfile();
+    const initializeProfile = async () => {
+      await loadUserProfile();
+      await requestPermissions();
+    };
+    
+    initializeProfile().catch(error => {
+      console.error('Failed to initialize profile:', error);
+    });
   }, []);
+
+  const requestPermissions = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(
+        'Permission Required',
+        'Camera permission is required to take photos. Please enable it in settings.',
+        [{ text: 'OK' }]
+      );
+    }
+  };
 
   const loadUserProfile = async () => {
     try {
@@ -72,16 +94,86 @@ export default function ProfileScreen() {
     bottomSheetRef.current?.dismiss();
   };
 
-  const handleTakePhoto = () => {
-    console.log('Take photo');
-    handleCloseSheet();
-    // Implement camera functionality here
+  const handleTakePhoto = async () => {
+    try {
+      setUploadingImage(true);
+      
+      // Check camera permissions first
+      const permissionResult = await ImagePicker.getCameraPermissionsAsync();
+      if (!permissionResult.granted) {
+        const requestResult = await ImagePicker.requestCameraPermissionsAsync();
+        if (!requestResult.granted) {
+          Alert.alert('Permission Required', 'Camera permission is required to take photos.');
+          return;
+        }
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        if (asset.uri) {
+          const updatedUser = await updateProfilePicture(asset.uri);
+          setUserData(updatedUser);
+          Alert.alert('Success', 'Profile picture updated successfully!');
+        } else {
+          Alert.alert('Error', 'Unable to get image URI. Please try again.');
+        }
+      }
+    } catch (error) {
+      console.error('Error taking photo:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      Alert.alert('Error', `Failed to take photo: ${errorMessage || 'Please try again.'}`);
+    } finally {
+      setUploadingImage(false);
+      handleCloseSheet();
+    }
   };
 
-  const handleChoosePhoto = () => {
-    console.log('Choose photo');
-    handleCloseSheet();
-    // Implement photo picker functionality here
+  const handleChoosePhoto = async () => {
+    try {
+      setUploadingImage(true);
+      
+      // Check media library permissions first
+      const permissionResult = await ImagePicker.getMediaLibraryPermissionsAsync();
+      if (!permissionResult.granted) {
+        const requestResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!requestResult.granted) {
+          Alert.alert('Permission Required', 'Photo library permission is required to select photos.');
+          return;
+        }
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        if (asset.uri) {
+          const updatedUser = await updateProfilePicture(asset.uri);
+          setUserData(updatedUser);
+          Alert.alert('Success', 'Profile picture updated successfully!');
+        } else {
+          Alert.alert('Error', 'Unable to get image URI. Please try again.');
+        }
+      }
+    } catch (error) {
+      console.error('Error choosing photo:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      Alert.alert('Error', `Failed to select photo: ${errorMessage || 'Please try again.'}`);
+    } finally {
+      setUploadingImage(false);
+      handleCloseSheet();
+    }
   };
 
   const handleEditName = () => {
@@ -200,7 +292,7 @@ export default function ProfileScreen() {
                       size="xl"
                       imageSource={
                         userData?.photo
-                          ? { uri: userData.photo }
+                          ? { uri: userData.photo.startsWith('http') ? userData.photo : `${API_BASE_URL}${userData.photo}` }
                           : require('@/assets/images/sample-profile-picture.jpg')
                       }
                     />

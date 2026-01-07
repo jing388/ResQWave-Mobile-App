@@ -9,6 +9,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { View, Text } from 'react-native';
 import 'react-native-reanimated';
 import '../global.css';
 
@@ -42,9 +43,13 @@ export default function RootLayout() {
     'geist-black': Geist_900Black,
   });
 
-  // Show nothing while fonts are loading
+  // Show loading screen while fonts are loading
   if (!fontsLoaded) {
-    return null;
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1F2937' }}>
+        <Text style={{ color: '#F9FAFB', fontSize: 16, fontFamily: 'System' }}>Loading fonts...</Text>
+      </View>
+    );
   }
 
   return (

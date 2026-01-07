@@ -64,22 +64,61 @@ export const updatePassword = async (currentPassword: string, newPassword: strin
 // Upload profile picture
 export const uploadProfilePicture = async (imageUri: string): Promise<UserProfile> => {
   try {
+    // Validate URI
+    if (!imageUri) {
+      throw new Error('Image URI is required');
+    }
+
+    // Get file info
+    const fileInfo = await getImageFileInfo(imageUri);
+    
     const formData = new FormData();
     formData.append('photo', {
       uri: imageUri,
-      type: 'image/jpeg',
-      name: 'profile.jpg',
+      type: fileInfo.type || 'image/jpeg',
+      name: fileInfo.name || 'profile.jpg',
     } as any);
 
-    const data = await apiFetch<{ user: UserProfile }>('/user/photo', {
+    const data = await apiFetch<{ user: UserProfile }>('/profile/photo', {
       method: 'POST',
       body: formData,
-      headers: {}, // Let fetch set Content-Type to multipart/form-data
     });
 
     return data.user;
   } catch (error) {
     console.error('Error uploading profile picture:', error);
-    throw error;
+    const errorMessage = error instanceof Error ? error.message : 'Upload failed';
+    throw new Error(`Failed to upload profile picture: ${errorMessage}`);
   }
+};
+
+// Helper function to get file info from URI
+const getImageFileInfo = async (uri: string): Promise<{ type: string; name: string }> => {
+  try {
+    // Extract file extension from URI
+    const uriParts = uri.split('.');
+    const fileExtension = uriParts[uriParts.length - 1];
+    
+    // Determine MIME type based on extension
+    const mimeTypes: { [key: string]: string } = {
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'png': 'image/png',
+      'gif': 'image/gif',
+      'webp': 'image/webp',
+    };
+    
+    const mimeType = mimeTypes[fileExtension.toLowerCase()] || 'image/jpeg';
+    const fileName = `profile.${fileExtension || 'jpg'}`;
+    
+    return { type: mimeType, name: fileName };
+  } catch (error) {
+    console.error('Error getting file info:', error);
+    return { type: 'image/jpeg', name: 'profile.jpg' };
+  }
+};
+
+// Update profile picture (alias for uploadProfilePicture)
+export const updateProfilePicture = async (imageUri: string): Promise<UserProfile> => {
+  return uploadProfilePicture(imageUri);
 };
