@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.21:5000';
+  process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.12:5000';
 
 // Storage keys
 const TOKEN_KEY = '@auth_token';
@@ -27,6 +27,9 @@ export async function apiFetch<T = any>(
     '/focal/register',
     '/focal/verify',
     '/focal/resend',
+    '/focal/reset',
+    '/verifyResetCode',
+    '/resetPassword',
     '/chatbot/chat',
     '/chatbot/translate',
   ];

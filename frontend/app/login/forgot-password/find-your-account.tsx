@@ -2,6 +2,7 @@ import { BottomButtonContainer } from '@/components/ui/bottom-button-container';
 import CustomButton from '@/components/ui/custom-button';
 import { CustomInput } from '@/components/ui/custom-input';
 import { colors } from '@/constants/colors';
+import { passwordResetService } from '@/services/password-reset-service';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -45,13 +46,32 @@ export default function FindYourAccountScreen() {
     setIsLoading(true);
 
     try {
-      // Simulate API call to find account
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Call real API to request password reset
+      const response = await passwordResetService.requestPasswordReset(
+        identifier,
+      );
 
-      // Navigate to enter code sent screen
-      router.push('/login/forgot-password/enter-code-sent');
-    } catch (error) {
-      Alert.alert('Error', 'Unable to find account. Please try again.');
+      console.log('Password reset requested:', response);
+
+      // Show success message with masked email
+      Alert.alert(
+        'Verification Code Sent',
+        `A 6-digit verification code has been sent to ${response.maskedEmail}. The code will expire in ${response.expiresInMinutes} minutes.`,
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              // Navigate to enter code sent screen
+              router.push('/login/forgot-password/enter-code-sent');
+            },
+          },
+        ],
+      );
+    } catch (error: any) {
+      console.error('Password reset error:', error);
+      const errorMessage =
+        error?.message || 'Unable to find account. Please try again.';
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsLoading(false);
     }
