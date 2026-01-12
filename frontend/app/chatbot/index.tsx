@@ -81,8 +81,7 @@ export default function ChatbotScreen() {
                 setQuickActions(data.quickActions.slice(0, 3));
               }
             } catch (_err) {
-              console.error('Quick actions error:', _err);
-              // Fallback quick actions
+              // Silently fallback to default quick actions
               setQuickActions([
                 'What is ResQWave for?',
                 'How do I send an SOS alert?',
@@ -240,8 +239,7 @@ export default function ChatbotScreen() {
         setQuickActions(data.quickActions.slice(0, 3));
       }
     } catch (_err) {
-      console.error('Quick actions error:', _err);
-      // Fallback quick actions
+      // Silently fallback to default quick actions
       setQuickActions([
         'What is ResQWave for?',
         'How do I send an SOS alert?',
@@ -306,15 +304,27 @@ export default function ChatbotScreen() {
               method: 'POST',
               body: JSON.stringify({ text: textToSend, mode: 'quickActions', userRole }),
             });
-            if (Array.isArray(qaData.quickActions)) {
+            if (Array.isArray(qaData.quickActions) && qaData.quickActions.length > 0) {
               setQuickActions(qaData.quickActions.slice(0, 3));
               // Scroll again after quick actions load
               setTimeout(() => {
                 scrollViewRef.current?.scrollToEnd({ animated: true });
               }, 250);
+            } else {
+              // Fallback if empty array returned
+              setQuickActions([
+                'How do I send an SOS alert?',
+                'What do the LED indicators mean?',
+                'How to use the terminal?',
+              ]);
             }
           } catch (err) {
-            console.error('Quick actions error:', err);
+            // Silently fallback to default quick actions
+            setQuickActions([
+              'How do I send an SOS alert?',
+              'What do the LED indicators mean?',
+              'How to use the terminal?',
+            ]);
           }
         })();
       } catch (error) {
@@ -468,7 +478,7 @@ export default function ChatbotScreen() {
             }, 250);
           }
         } catch (err) {
-          console.error('Quick actions error:', err);
+          // Silently fallback - error already handled by apiFetch
         }
       })();
     } catch (error) {
