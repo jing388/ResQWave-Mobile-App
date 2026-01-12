@@ -72,6 +72,18 @@ export function InfoSheet({
   }, [visible]);
 
   if (!markerData) return null;
+  
+  // Debug logging for button visibility
+  console.log('🎨 [InfoSheet] Rendering with markerData:', markerData.neighborhoodID);
+  console.log('🎨 [InfoSheet] Marker TYPE:', markerData.type);
+  console.log('🎨 [InfoSheet] Type check result:', markerData.type === 'own');
+  console.log('🎨 [InfoSheet] Will show buttons?', markerData.type === 'own');
+  console.log('🎨 [InfoSheet] Full marker object:', JSON.stringify(markerData, null, 2));
+  
+  // TEMPORARY DEBUG: Show alert with type value
+  if (markerData.neighborhoodID === 'N006') {
+    console.warn('⚠️ N006 TYPE IS:', markerData.type, '| Expected: "own"');
+  }
 
   return (
     <BottomSheet
@@ -106,26 +118,34 @@ export function InfoSheet({
                 <Text className="text-white text-2xl font-geist-semibold">
                   {markerData.neighborhoodID}
                 </Text>
+                <Text className="text-gray-400 text-xs font-geist-mono mt-1">
+                  ID: {markerData.id}
+                </Text>
                 <Text className="text-gray-400 text-sm font-geist-regular mt-1">
                   {markerData.latitude}, {markerData.longitude}
                 </Text>
               </View>
-              {/* Edit Button */}
-              <TouchableOpacity
-                className="bg-blue-500 rounded-lg p-3"
-                onPress={() => onEdit?.(markerData)}
-                activeOpacity={0.7}
-              >
-                <Pencil size={20} color="#ffffff" />
-              </TouchableOpacity>
-              {/* More Info Button */}
-              <TouchableOpacity
-                className="bg-green-500 rounded-lg p-3"
-                onPress={() => onMoreInfo?.(markerData)}
-                activeOpacity={0.7}
-              >
-                <Radio size={20} color="#ffffff" />
-              </TouchableOpacity>
+              {/* Only show Edit and Info buttons for user's OWN neighborhood */}
+              {markerData.type === 'own' && (
+                <>
+                  {/* Edit Button */}
+                  <TouchableOpacity
+                    className="bg-blue-500 rounded-lg p-3"
+                    onPress={() => onEdit?.(markerData)}
+                    activeOpacity={0.7}
+                  >
+                    <Pencil size={20} color="#ffffff" />
+                  </TouchableOpacity>
+                  {/* More Info Button */}
+                  <TouchableOpacity
+                    className="bg-green-500 rounded-lg p-3"
+                    onPress={() => onMoreInfo?.(markerData)}
+                    activeOpacity={0.7}
+                  >
+                    <Radio size={20} color="#ffffff" />
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
 
             {/* Terminal ID */}

@@ -11,61 +11,21 @@ import { colors } from '@/constants/colors';
 import { useNeighborhoodData } from '@/hooks/use-neighborhood-data';
 import { formatDate } from '@/utils/formatters';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useLocalSearchParams, router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { router } from 'expo-router';
+import React from 'react';
 import { ActivityIndicator, StatusBar, Text, View } from 'react-native';
 import Animated, {
   useAnimatedScrollHandler,
   useSharedValue,
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import {
-  getLastSelectedNeighborhood,
-} from '@/services/neighborhood-persistence';
 
 export default function AboutNeighborhoodScreen() {
-  // Get the neighborhoodId from the URL parameters
-  const { neighborhoodId: urlNeighborhoodId } = useLocalSearchParams<{ neighborhoodId?: string }>();
-  
-  // State for managing the neighborhood ID to use (from URL or persisted)
-  const [effectiveNeighborhoodId, setEffectiveNeighborhoodId] = useState<string | null | undefined>(undefined);
-  const [isLoadingPersisted, setIsLoadingPersisted] = useState(true);
-
-  // Load persisted neighborhood ID if no neighborhoodId is provided in URL
-  useEffect(() => {
-    const loadPersistedNeighborhood = async () => {
-      if (!urlNeighborhoodId) {
-        console.log('No neighborhoodId in URL, checking for persisted neighborhood...');
-        const persistedId = await getLastSelectedNeighborhood();
-        if (persistedId) {
-          console.log('Found persisted neighborhood:', persistedId);
-          setEffectiveNeighborhoodId(persistedId);
-        } else {
-          console.log('No persisted neighborhood found');
-          setEffectiveNeighborhoodId(null); // Use null instead of undefined
-        }
-      } else {
-        console.log('Using neighborhoodId from URL:', urlNeighborhoodId);
-        setEffectiveNeighborhoodId(urlNeighborhoodId);
-      }
-      setIsLoadingPersisted(false);
-    };
-
-    loadPersistedNeighborhood();
-  }, [urlNeighborhoodId]);
-
-  // If we have a persisted neighborhood ID but no URL parameter, update the URL
-  useEffect(() => {
-    if (effectiveNeighborhoodId && !urlNeighborhoodId && !isLoadingPersisted) {
-      console.log('Updating URL with persisted neighborhood ID:', effectiveNeighborhoodId);
-      router.replace({
-        pathname: '/(tabs)/about-neighborhood',
-        params: { neighborhoodId: effectiveNeighborhoodId }
-      });
-    }
-  }, [effectiveNeighborhoodId, urlNeighborhoodId, isLoadingPersisted]);
+  // For data privacy compliance, this page ONLY shows the user's OWN neighborhood
+  // No URL params needed - we always fetch from /neighborhood/own endpoint
   
   // Use custom hook for all state management and handlers
+  // Pass null to always fetch user's own neighborhood
   const {
     isEditMode,
     isLoading,
@@ -79,7 +39,7 @@ export default function AboutNeighborhoodScreen() {
     handleHazardToggle,
     handleNotableInfoChange,
     handleAlternativeFocalChange,
-  } = useNeighborhoodData(effectiveNeighborhoodId);
+  } = useNeighborhoodData(null); // Always fetch own neighborhood
 
   // Reanimated values for header
   const scrollY = useSharedValue(0);
@@ -137,23 +97,23 @@ export default function AboutNeighborhoodScreen() {
         className="absolute inset-0"
       />
 
-      {(isLoading || isLoadingPersisted) ? (
+      {isLoading ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color={colors.status.info} />
           <Text className="text-text-muted text-base font-geist-regular mt-4">
-            Loading neighborhood data...
+            Loading your neighborhood data...
           </Text>
         </View>
       ) : !neighborhoodData ? (
         <View className="flex-1 items-center justify-center px-6">
           <Text className="text-text-primary text-xl font-geist-semibold mb-2">
-            No Neighborhood Selected
+            No Neighborhood Assigned
           </Text>
           <Text className="text-text-muted text-base font-geist-regular text-center mb-4">
-            Please select a neighborhood on the map to view detailed information
+            You don't have a neighborhood assigned to your account yet.
           </Text>
-          <Text className="text-text-secondary text-sm font-geist-regular text-center">
-            Go to the Map tab and tap on any neighborhood marker to see its details here
+          <Text className="text-text-secondary text-sm font-geist-regular text-center mb-4">
+            Tap your neighborhood marker on the Map tab and use the green button to view details.
           </Text>
         </View>
       ) : (

@@ -7,10 +7,11 @@ const LAST_SELECTED_NEIGHBORHOOD_KEY = 'last_selected_neighborhood_id';
  */
 export const saveLastSelectedNeighborhood = async (neighborhoodId: string): Promise<void> => {
   try {
+    console.log('💾 [persistence] Saving neighborhood ID:', neighborhoodId);
     await AsyncStorage.setItem(LAST_SELECTED_NEIGHBORHOOD_KEY, neighborhoodId);
-    console.log('Saved last selected neighborhood:', neighborhoodId);
+    console.log('✅ [persistence] Successfully saved:', neighborhoodId);
   } catch (error) {
-    console.error('Failed to save last selected neighborhood:', error);
+    console.error('❌ [persistence] Failed to save last selected neighborhood:', error);
   }
 };
 
@@ -20,10 +21,10 @@ export const saveLastSelectedNeighborhood = async (neighborhoodId: string): Prom
 export const getLastSelectedNeighborhood = async (): Promise<string | null> => {
   try {
     const neighborhoodId = await AsyncStorage.getItem(LAST_SELECTED_NEIGHBORHOOD_KEY);
-    console.log('Retrieved last selected neighborhood:', neighborhoodId);
+    console.log('📂 [persistence] Retrieved neighborhood ID:', neighborhoodId);
     return neighborhoodId;
   } catch (error) {
-    console.error('Failed to get last selected neighborhood:', error);
+    console.error('❌ [persistence] Failed to get last selected neighborhood:', error);
     return null;
   }
 };
