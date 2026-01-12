@@ -297,8 +297,8 @@ export default function ChatbotScreen() {
           scrollViewRef.current?.scrollToEnd({ animated: true });
         }, 100);
 
-        // Fetch quick actions (fire-and-forget)
-        (async () => {
+        // Fetch quick actions (fire-and-forget with delay to avoid rate limiting)
+        setTimeout(async () => {
           try {
             const qaData = await apiFetch<{ quickActions?: string[] }>('/chatbot/chat', {
               method: 'POST',
@@ -317,6 +317,10 @@ export default function ChatbotScreen() {
                 'What do the LED indicators mean?',
                 'How to use the terminal?',
               ]);
+              // Scroll to show fallback actions
+              setTimeout(() => {
+                scrollViewRef.current?.scrollToEnd({ animated: true });
+              }, 100);
             }
           } catch (err) {
             // Silently fallback to default quick actions
@@ -325,8 +329,12 @@ export default function ChatbotScreen() {
               'What do the LED indicators mean?',
               'How to use the terminal?',
             ]);
+            // Scroll to show fallback actions
+            setTimeout(() => {
+              scrollViewRef.current?.scrollToEnd({ animated: true });
+            }, 100);
           }
-        })();
+        }, 800); // 800ms delay to reduce rate limiting
       } catch (error) {
         console.error('Error calling backend chatbot:', error);
         setIsTyping(false);
@@ -463,24 +471,42 @@ export default function ChatbotScreen() {
         scrollViewRef.current?.scrollToEnd({ animated: true });
       }, 100);
 
-      // Fetch quick actions (fire-and-forget)
-      (async () => {
+      // Fetch quick actions (fire-and-forget with delay to avoid rate limiting)
+      setTimeout(async () => {
         try {
           const qaData = await apiFetch<{ quickActions?: string[] }>('/chatbot/chat', {
             method: 'POST',
             body: JSON.stringify({ text: action, mode: 'quickActions', userRole }),
           });
-          if (Array.isArray(qaData.quickActions)) {
+          if (Array.isArray(qaData.quickActions) && qaData.quickActions.length > 0) {
             setQuickActions(qaData.quickActions.slice(0, 3));
             // Scroll again after quick actions load
             setTimeout(() => {
               scrollViewRef.current?.scrollToEnd({ animated: true });
             }, 250);
+          } else {
+            // Fallback if empty array returned
+            setQuickActions([
+              'How do I send an SOS alert?',
+              'What do the LED indicators mean?',
+              'How to use the terminal?',
+            ]);
+            setTimeout(() => {
+              scrollViewRef.current?.scrollToEnd({ animated: true });
+            }, 100);
           }
         } catch (err) {
-          // Silently fallback - error already handled by apiFetch
+          // Silently fallback to default quick actions
+          setQuickActions([
+            'How do I send an SOS alert?',
+            'What do the LED indicators mean?',
+            'How to use the terminal?',
+          ]);
+          setTimeout(() => {
+            scrollViewRef.current?.scrollToEnd({ animated: true });
+          }, 100);
         }
-      })();
+      }, 800); // 800ms delay to reduce rate limiting
     } catch (error) {
       console.error('Error calling backend chatbot:', error);
       setIsTyping(false);
@@ -742,7 +768,7 @@ export default function ChatbotScreen() {
               </View>
 
               {/* Quick Actions - At bottom when minimal content, scrollable with messages */}
-              {greetingShown && quickActions.length > 0 && (
+              {greetingShown && quickActions.length > 0 && !isTyping && (
                 <View style={{ marginTop: 4, marginBottom: 8 }}>
                   {quickActions.map((action, index) => (
                     <TouchableOpacity
@@ -754,11 +780,9 @@ export default function ChatbotScreen() {
                         borderRadius: 6,
                         marginBottom: index === quickActions.length - 1 ? 0 : 8,
                         alignItems: 'center',
-                        opacity: isTyping ? 0.5 : 1,
                       }}
                       onPress={() => handleQuickAction(action)}
                       activeOpacity={0.7}
-                      disabled={isTyping}
                     >
                       <Text style={{ color: '#FFFFFF', fontSize: 13, lineHeight: 14, textAlign: 'center' }}>{action}</Text>
                     </TouchableOpacity>
