@@ -81,12 +81,8 @@ export default function ChatbotScreen() {
                 setQuickActions(data.quickActions.slice(0, 3));
               }
             } catch (_err) {
-              // Silently fallback to default quick actions
-              setQuickActions([
-                'What is ResQWave for?',
-                'How do I send an SOS alert?',
-                'How to use the terminal?',
-              ]);
+              // Backend handles fallback, just log error
+              console.error('Error fetching quick actions:', _err);
             }
           })();
 
@@ -239,12 +235,8 @@ export default function ChatbotScreen() {
         setQuickActions(data.quickActions.slice(0, 3));
       }
     } catch (_err) {
-      // Silently fallback to default quick actions
-      setQuickActions([
-        'What is ResQWave for?',
-        'How do I send an SOS alert?',
-        'How to use the terminal?',
-      ]);
+      // Backend handles fallback, just log error
+      console.error('Error fetching quick actions:', _err);
     }
   };
 
@@ -310,29 +302,10 @@ export default function ChatbotScreen() {
               setTimeout(() => {
                 scrollViewRef.current?.scrollToEnd({ animated: true });
               }, 250);
-            } else {
-              // Fallback if empty array returned
-              setQuickActions([
-                'How do I send an SOS alert?',
-                'What do the LED indicators mean?',
-                'How to use the terminal?',
-              ]);
-              // Scroll to show fallback actions
-              setTimeout(() => {
-                scrollViewRef.current?.scrollToEnd({ animated: true });
-              }, 100);
             }
           } catch (err) {
-            // Silently fallback to default quick actions
-            setQuickActions([
-              'How do I send an SOS alert?',
-              'What do the LED indicators mean?',
-              'How to use the terminal?',
-            ]);
-            // Scroll to show fallback actions
-            setTimeout(() => {
-              scrollViewRef.current?.scrollToEnd({ animated: true });
-            }, 100);
+            // Backend handles fallback, just log error
+            console.error('Error fetching quick actions:', err);
           }
         }, 800); // 800ms delay to reduce rate limiting
       } catch (error) {
@@ -346,14 +319,7 @@ export default function ChatbotScreen() {
         };
         setMessages((prev) => [...prev, botResponse]);
 
-        // Show fallback quick actions
-        setQuickActions([
-          'What is ResQWave for?',
-          'How do I send an SOS alert?',
-          'How to use the terminal?',
-        ]);
-
-        // Scroll to bottom after error response and quick actions
+        // Scroll to bottom after error response
         setTimeout(() => {
           scrollViewRef.current?.scrollToEnd({ animated: true });
         }, 250);
@@ -484,27 +450,10 @@ export default function ChatbotScreen() {
             setTimeout(() => {
               scrollViewRef.current?.scrollToEnd({ animated: true });
             }, 250);
-          } else {
-            // Fallback if empty array returned
-            setQuickActions([
-              'How do I send an SOS alert?',
-              'What do the LED indicators mean?',
-              'How to use the terminal?',
-            ]);
-            setTimeout(() => {
-              scrollViewRef.current?.scrollToEnd({ animated: true });
-            }, 100);
           }
         } catch (err) {
-          // Silently fallback to default quick actions
-          setQuickActions([
-            'How do I send an SOS alert?',
-            'What do the LED indicators mean?',
-            'How to use the terminal?',
-          ]);
-          setTimeout(() => {
-            scrollViewRef.current?.scrollToEnd({ animated: true });
-          }, 100);
+          // Backend handles fallback, just log error
+          console.error('Error fetching quick actions:', err);
         }
       }, 800); // 800ms delay to reduce rate limiting
     } catch (error) {
@@ -518,14 +467,7 @@ export default function ChatbotScreen() {
       };
       setMessages((prev) => [...prev, botResponse]);
 
-      // Show fallback quick actions
-      setQuickActions([
-        'What is ResQWave for?',
-        'How do I send an SOS alert?',
-        'How to use the terminal?',
-      ]);
-
-      // Scroll to bottom after error response and quick actions
+      // Scroll to bottom after error response
       setTimeout(() => {
         scrollViewRef.current?.scrollToEnd({ animated: true });
       }, 250);
