@@ -33,14 +33,7 @@ export default function ChatbotScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
   const botTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      text: "Hi, I'm Reskwie! Think of me like an assistant who's here to help you get to know ResQWave more!\n\nSo, what can I help you with today?",
-      sender: 'bot',
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [translatingMessages, setTranslatingMessages] = useState<Set<string>>(new Set());
@@ -82,7 +75,7 @@ export default function ChatbotScreen() {
             try {
               const data = await apiFetch<{ quickActions?: string[] }>('/chatbot/chat', {
                 method: 'POST',
-                body: JSON.stringify({ text: 'Generate quick actions for greeting', mode: 'quickActions' }),
+                body: JSON.stringify({ text: 'Generate quick actions for greeting', mode: 'quickActions', userRole }),
               });
               if (Array.isArray(data.quickActions) && data.quickActions.length) {
                 setQuickActions(data.quickActions.slice(0, 3));
@@ -169,6 +162,28 @@ export default function ChatbotScreen() {
 
   const [quickActions, setQuickActions] = useState<string[]>([]);
   const [greetingShown, setGreetingShown] = useState(false);
+  const [welcomeMessage, setWelcomeMessage] = useState<string>(
+    "Hi, I'm Reskwie! Think of me like an assistant who's here to help you get to know ResQWave more!\n\nSo, what can I help you with today?"
+  );
+  const [userRole] = useState<string>('focal_persons');
+
+  // Fetch welcome message from backend on mount
+  useEffect(() => {
+    const fetchWelcomeMessage = async () => {
+      try {
+        const data = await apiFetch<{ settings?: { welcomeMessage?: string } }>('/chatbot/settings', {
+          method: 'GET',
+        });
+        if (data.settings?.welcomeMessage) {
+          setWelcomeMessage(data.settings.welcomeMessage);
+        }
+      } catch (error) {
+        console.error('Error fetching welcome message:', error);
+        // Keep default if fetch fails
+      }
+    };
+    fetchWelcomeMessage();
+  }, []);
 
   // Auto-scroll when quick actions appear
   useEffect(() => {
@@ -192,7 +207,7 @@ export default function ChatbotScreen() {
     const initialMessages: Message[] = [
       {
         id: '1',
-        text: "Hi, I'm Reskwie! Think of me like an assistant who's here to help you get to know ResQWave more!\n\nSo, what can I help you with today?",
+        text: welcomeMessage,
         sender: 'bot' as const,
         timestamp: new Date(),
       },
@@ -219,7 +234,7 @@ export default function ChatbotScreen() {
     try {
       const data = await apiFetch<{ quickActions?: string[] }>('/chatbot/chat', {
         method: 'POST',
-        body: JSON.stringify({ text: 'Generate quick actions for greeting', mode: 'quickActions' }),
+        body: JSON.stringify({ text: 'Generate quick actions for greeting', mode: 'quickActions', userRole }),
       });
       if (Array.isArray(data.quickActions) && data.quickActions.length) {
         setQuickActions(data.quickActions.slice(0, 3));
@@ -266,7 +281,7 @@ export default function ChatbotScreen() {
         // Call backend API for chatbot response
         const data = await apiFetch<{ response?: string }>('/chatbot/chat', {
           method: 'POST',
-          body: JSON.stringify({ text: textToSend, mode: 'main' }),
+          body: JSON.stringify({ text: textToSend, mode: 'main', userRole }),
         });
         const aiResponse = data?.response || '[No response]';
 
@@ -289,7 +304,7 @@ export default function ChatbotScreen() {
           try {
             const qaData = await apiFetch<{ quickActions?: string[] }>('/chatbot/chat', {
               method: 'POST',
-              body: JSON.stringify({ text: textToSend, mode: 'quickActions' }),
+              body: JSON.stringify({ text: textToSend, mode: 'quickActions', userRole }),
             });
             if (Array.isArray(qaData.quickActions)) {
               setQuickActions(qaData.quickActions.slice(0, 3));
@@ -420,7 +435,7 @@ export default function ChatbotScreen() {
       // Call backend API for chatbot response
       const data = await apiFetch<{ response?: string }>('/chatbot/chat', {
         method: 'POST',
-        body: JSON.stringify({ text: action, mode: 'main' }),
+        body: JSON.stringify({ text: action, mode: 'main', userRole }),
       });
       const aiResponse = data?.response || '[No response]';
 
@@ -443,7 +458,7 @@ export default function ChatbotScreen() {
         try {
           const qaData = await apiFetch<{ quickActions?: string[] }>('/chatbot/chat', {
             method: 'POST',
-            body: JSON.stringify({ text: action, mode: 'quickActions' }),
+            body: JSON.stringify({ text: action, mode: 'quickActions', userRole }),
           });
           if (Array.isArray(qaData.quickActions)) {
             setQuickActions(qaData.quickActions.slice(0, 3));
@@ -631,89 +646,89 @@ export default function ChatbotScreen() {
               showsVerticalScrollIndicator={false}
             >
               <View>
-              {messages.map((message, index) => {
-                const prevMessage = index > 0 ? messages[index - 1] : null;
-                const currentTime = message.timestamp.toLocaleString('en-US', {
-                  day: '2-digit',
-                  month: 'short',
-                  hour: 'numeric',
-                  minute: '2-digit',
-                  hour12: true,
-                });
-                const prevTime = prevMessage ? prevMessage.timestamp.toLocaleString('en-US', {
-                  day: '2-digit',
-                  month: 'short',
-                  hour: 'numeric',
-                  minute: '2-digit',
-                  hour12: true,
-                }) : null;
-                const showTimestamp = currentTime !== prevTime;
+                {messages.map((message, index) => {
+                  const prevMessage = index > 0 ? messages[index - 1] : null;
+                  const currentTime = message.timestamp.toLocaleString('en-US', {
+                    day: '2-digit',
+                    month: 'short',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true,
+                  });
+                  const prevTime = prevMessage ? prevMessage.timestamp.toLocaleString('en-US', {
+                    day: '2-digit',
+                    month: 'short',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true,
+                  }) : null;
+                  const showTimestamp = currentTime !== prevTime;
 
-                return (
-                  <View key={message.id} style={{ marginBottom: 12, alignItems: message.sender === 'user' ? 'flex-end' : 'flex-start', width: '100%' }}>
-                    {showTimestamp && (
-                      <Text style={{ color: '#6B7280', fontSize: 11, marginBottom: 15, alignSelf: 'center' }}>
-                        {message.timestamp.toLocaleString('en-US', {
-                          day: '2-digit',
-                          month: 'short',
-                        }).toUpperCase()} AT {message.timestamp.toLocaleString('en-US', {
-                          hour: 'numeric',
-                          minute: '2-digit',
-                          hour12: true,
-                        }).toUpperCase()}
-                      </Text>
-                    )}
+                  return (
+                    <View key={message.id} style={{ marginBottom: 12, alignItems: message.sender === 'user' ? 'flex-end' : 'flex-start', width: '100%' }}>
+                      {showTimestamp && (
+                        <Text style={{ color: '#6B7280', fontSize: 11, marginBottom: 15, alignSelf: 'center' }}>
+                          {message.timestamp.toLocaleString('en-US', {
+                            day: '2-digit',
+                            month: 'short',
+                          }).toUpperCase()} AT {message.timestamp.toLocaleString('en-US', {
+                            hour: 'numeric',
+                            minute: '2-digit',
+                            hour12: true,
+                          }).toUpperCase()}
+                        </Text>
+                      )}
+                      <View
+                        style={{
+                          backgroundColor: message.sender === 'user' ? '#3B82F6' : '#1D1D1D',
+                          paddingHorizontal: 16,
+                          paddingVertical: 12,
+                          borderRadius: 6,
+                          maxWidth: '85%',
+                        }}
+                      >
+                        <Text style={{ color: '#FFFFFF', fontSize: 14, lineHeight: 19 }}>
+                          {message.sender === 'bot' && showTranslation.has(message.id) && message.translation
+                            ? message.translation
+                            : message.text}
+                        </Text>
+                      </View>
+                      {message.sender === 'bot' && (
+                        <TouchableOpacity
+                          style={{ marginTop: 4, paddingHorizontal: 4 }}
+                          onPress={() => handleTranslationToggle(message.id)}
+                        >
+                          <Text style={{ color: '#6B7280', fontSize: 11 }}>
+                            {translatingMessages.has(message.id)
+                              ? 'Translating...'
+                              : showTranslation.has(message.id)
+                                ? 'Hide translation'
+                                : 'See translation'}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  );
+                })}
+
+                {/* Typing Indicator */}
+                {isTyping && (
+                  <View style={{ marginBottom: 12, alignItems: 'flex-start', width: '100%' }}>
                     <View
                       style={{
-                        backgroundColor: message.sender === 'user' ? '#3B82F6' : '#1D1D1D',
                         paddingHorizontal: 16,
                         paddingVertical: 12,
-                        borderRadius: 6,
-                        maxWidth: '85%',
+                        flexDirection: 'row',
+                        gap: 4,
+                        alignItems: 'center',
                       }}
                     >
-                      <Text style={{ color: '#FFFFFF', fontSize: 14, lineHeight: 19 }}>
-                        {message.sender === 'bot' && showTranslation.has(message.id) && message.translation
-                          ? message.translation
-                          : message.text}
-                      </Text>
+                      <Animated.View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#6B7280', opacity: dot1Opacity }} />
+                      <Animated.View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#6B7280', opacity: dot2Opacity }} />
+                      <Animated.View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#6B7280', opacity: dot3Opacity }} />
                     </View>
-                    {message.sender === 'bot' && (
-                      <TouchableOpacity
-                        style={{ marginTop: 4, paddingHorizontal: 4 }}
-                        onPress={() => handleTranslationToggle(message.id)}
-                      >
-                        <Text style={{ color: '#6B7280', fontSize: 11 }}>
-                          {translatingMessages.has(message.id)
-                            ? 'Translating...'
-                            : showTranslation.has(message.id)
-                              ? 'Hide translation'
-                              : 'See translation'}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
                   </View>
-                );
-              })}
-
-              {/* Typing Indicator */}
-              {isTyping && (
-                <View style={{ marginBottom: 12, alignItems: 'flex-start', width: '100%' }}>
-                  <View
-                    style={{
-                      paddingHorizontal: 16,
-                      paddingVertical: 12,
-                      flexDirection: 'row',
-                      gap: 4,
-                      alignItems: 'center',
-                    }}
-                  >
-                    <Animated.View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#6B7280', opacity: dot1Opacity }} />
-                    <Animated.View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#6B7280', opacity: dot2Opacity }} />
-                    <Animated.View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#6B7280', opacity: dot3Opacity }} />
-                  </View>
-                </View>
-              )}
+                )}
               </View>
 
               {/* Quick Actions - At bottom when minimal content, scrollable with messages */}
