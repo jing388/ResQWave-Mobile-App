@@ -3,6 +3,7 @@ import CustomButton from '@/components/ui/custom-button';
 import { CustomInput } from '@/components/ui/custom-input';
 import PasswordGuide from '@/components/ui/password-guide';
 import { colors } from '@/constants/colors';
+import { passwordResetService } from '@/services/password-reset-service';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -34,7 +35,7 @@ export default function ResetPasswordScreen() {
     /[A-Z]/.test(newPassword) &&
     /[a-z]/.test(newPassword) &&
     /[0-9]/.test(newPassword) &&
-    /[!@#$%^&*(),.?":{}|<>]/.test(newPassword);
+    /[ !"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]/.test(newPassword);
 
   const doPasswordsMatch =
     newPassword === confirmPassword && confirmPassword.length > 0;
@@ -68,8 +69,10 @@ export default function ResetPasswordScreen() {
     setIsLoading(true);
 
     try {
-      // Simulate API call to reset password
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Call real API to reset password
+      const response = await passwordResetService.resetPassword(newPassword);
+
+      console.log('Password reset successful:', response);
 
       Alert.alert(
         'Success',
@@ -84,8 +87,11 @@ export default function ResetPasswordScreen() {
           },
         ],
       );
-    } catch (error) {
-      Alert.alert('Error', 'Failed to reset password. Please try again.');
+    } catch (error: any) {
+      console.error('Password reset error:', error);
+      const errorMessage =
+        error?.message || 'Failed to reset password. Please try again.';
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsLoading(false);
     }

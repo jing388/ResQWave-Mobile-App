@@ -27,6 +27,9 @@ export async function apiFetch<T = any>(
     '/focal/register',
     '/focal/verify',
     '/focal/resend',
+    '/focal/reset',
+    '/verifyResetCode',
+    '/resetPassword',
     '/chatbot/chat',
     '/chatbot/translate',
   ];

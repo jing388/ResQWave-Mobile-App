@@ -16,6 +16,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, onClose, title = '
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(true);
+  const [pdfBase64, setPdfBase64] = useState<string | null>(null);
   const webViewRef = useRef<WebView>(null);
   const downloadResumableRef = useRef<any>(null);
 
@@ -36,6 +37,16 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, onClose, title = '
         // Online PDF - try to cache it
         await cachePDF(pdfUrl);
         setIsOnline(true);
+      } else if (pdfUrl.startsWith('file://')) {
+        // Local PDF file - read as base64 for WebView
+        console.log('Reading local PDF file as base64...');
+        const base64 = await FileSystem.readAsStringAsync(pdfUrl, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        setPdfBase64(base64);
+        setLocalUri(pdfUrl);
+        setIsOnline(false);
+        setLoading(false);
       } else {
         // Local PDF
         setLocalUri(pdfUrl);
@@ -318,11 +329,88 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, onClose, title = '
     if (localUri) {
       console.log('Rendering WebView with URI:', localUri);
       
-      // Try Google Docs Viewer for more reliable PDF rendering
+      // For local PDFs, use PDF.js viewer
       let source;
-      if (localUri.startsWith('http')) {
+      if (pdfBase64) {
+        // Use PDF.js with base64 data for local files
+        source = {
+          html: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+              <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body, html { 
+                  width: 100%; 
+                  height: 100%; 
+                  overflow: auto; 
+                  background: #525252;
+                }
+                #pdf-container {
+                  width: 100%;
+                  min-height: 100%;
+                  display: flex;
+                  flex-direction: column;
+                  align-items: center;
+                  padding: 10px;
+                }
+                canvas {
+                  display: block;
+                  margin: 10px auto;
+                  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                  background: white;
+                  max-width: 100%;
+                  height: auto;
+                }
+              </style>
+              <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+            </head>
+            <body>
+              <div id="pdf-container"></div>
+              <script>
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                
+                const pdfData = atob('${pdfBase64}');
+                const typedArray = new Uint8Array(pdfData.length);
+                for (let i = 0; i < pdfData.length; i++) {
+                  typedArray[i] = pdfData.charCodeAt(i);
+                }
+                
+                const loadingTask = pdfjsLib.getDocument({ data: typedArray });
+                loadingTask.promise.then(function(pdf) {
+                  console.log('PDF loaded, pages:', pdf.numPages);
+                  
+                  // Render all pages
+                  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                    pdf.getPage(pageNum).then(function(page) {
+                      const viewport = page.getViewport({ scale: 1.5 });
+                      const canvas = document.createElement('canvas');
+                      const context = canvas.getContext('2d');
+                      canvas.height = viewport.height;
+                      canvas.width = viewport.width;
+                      
+                      document.getElementById('pdf-container').appendChild(canvas);
+                      
+                      const renderContext = {
+                        canvasContext: context,
+                        viewport: viewport
+                      };
+                      page.render(renderContext);
+                    });
+                  }
+                }).catch(function(error) {
+                  console.error('Error loading PDF:', error);
+                  document.body.innerHTML = '<div style="color: white; padding: 20px;">Error loading PDF: ' + error.message + '</div>';
+                });
+              </script>
+            </body>
+            </html>
+          `
+        };
+      } else if (localUri.startsWith('http')) {
         // Use Google Docs Viewer for online PDFs
-        const googleViewerUrl = `https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(localUri)}`;
+        const googleViewerUrl = `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(localUri)}`;
         console.log('Using Google Docs Viewer:', googleViewerUrl);
         source = { uri: googleViewerUrl };
       } else {
@@ -334,7 +422,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, onClose, title = '
         }
       }
       
-      console.log('WebView source:', source);
+      console.log('WebView source type:', pdfBase64 ? 'PDF.js HTML' : 'URI');
       
       return (
         <WebView
@@ -349,6 +437,8 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, onClose, title = '
           showsVerticalScrollIndicator={true}
           bounces={false}
           scrollEnabled={true}
+          javaScriptEnabled={true}
+          domStorageEnabled={true}
           onError={(syntheticEvent) => {
             console.error('WebView error:', syntheticEvent);
             const { nativeEvent } = syntheticEvent;
@@ -363,6 +453,9 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, onClose, title = '
             console.log('WebView loaded successfully');
             setLoading(false);
           }}
+          onMessage={(event) => {
+            console.log('WebView message:', event.nativeEvent.data);
+          }}
           onHttpError={(syntheticEvent) => {
             const { nativeEvent } = syntheticEvent;
             console.warn('HTTP Error:', nativeEvent);
@@ -371,8 +464,6 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, onClose, title = '
               setLoading(false);
             }
           }}
-          javaScriptEnabled={true}
-          domStorageEnabled={true}
           startInLoadingState={false}
           renderLoading={() => (
             <View style={styles.loadingContainer}>

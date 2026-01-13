@@ -2,6 +2,7 @@ import OtpField from '@/components/auth/otp-field';
 import { BottomButtonContainer } from '@/components/ui/bottom-button-container';
 import CustomButton from '@/components/ui/custom-button';
 import { colors } from '@/constants/colors';
+import { passwordResetService } from '@/services/password-reset-service';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -24,11 +25,40 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 export default function EnterCodeSentScreen() {
   const router = useRouter();
   const [code, setCode] = useState('');
-  const [resendTime, setResendTime] = useState(30);
+  const [resendTime, setResendTime] = useState(300); // 5 minutes in seconds
   const [isResendDisabled, setIsResendDisabled] = useState(true);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [maskedEmail, setMaskedEmail] = useState('');
 
   const isCodeComplete = code.length === 6;
+
+  // Load masked email from session on mount
+  useEffect(() => {
+    loadSessionData();
+  }, []);
+
+  const loadSessionData = async () => {
+    try {
+      const sessionData = await passwordResetService.getResetSessionData();
+      if (sessionData.maskedEmail) {
+        setMaskedEmail(sessionData.maskedEmail);
+      } else {
+        // No session found, redirect back
+        Alert.alert(
+          'Session Expired',
+          'Please start the password reset process again.',
+          [
+            {
+              text: 'OK',
+              onPress: () => router.replace('/login/forgot-password/find-your-account'),
+            },
+          ],
+        );
+      }
+    } catch (error) {
+      console.error('Error loading session data:', error);
+    }
+  };
 
   const handleBack = () => {
     router.back();
@@ -49,13 +79,18 @@ export default function EnterCodeSentScreen() {
     setIsVerifying(true);
 
     try {
-      // Simulate API call to verify code
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Call real API to verify code
+      const response = await passwordResetService.verifyResetCode(code);
+
+      console.log('Code verified:', response);
 
       // Navigate to reset password screen
       router.push('/login/forgot-password/reset-password');
-    } catch (error) {
-      Alert.alert('Error', 'Invalid verification code. Please try again.');
+    } catch (error: any) {
+      console.error('Verification error:', error);
+      const errorMessage =
+        error?.message || 'Invalid verification code. Please try again.';
+      Alert.alert('Verification Failed', errorMessage);
     } finally {
       setIsVerifying(false);
     }
@@ -74,17 +109,24 @@ export default function EnterCodeSentScreen() {
     if (isResendDisabled) return;
 
     try {
-      // Simulate API call to resend code
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Call real API to resend code
+      const response = await passwordResetService.resendCode();
 
-      // Reset timer to 30 seconds
-      setResendTime(30);
+      console.log('Code resent:', response);
+
+      // Reset timer to 5 minutes
+      setResendTime(300);
       setIsResendDisabled(true);
       setCode('');
 
-      Alert.alert('Success', 'A new verification code has been sent.');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to resend code. Please try again.');
+      Alert.alert(
+        'Success',
+        `A new verification code has been sent to ${response.maskedEmail}.`,
+      );
+    } catch (error: any) {
+      console.error('Resend error:', error);
+      const errorMessage = error?.message || 'Failed to resend code. Please try again.';
+      Alert.alert('Error', errorMessage);
     }
   };
 
@@ -160,8 +202,9 @@ export default function EnterCodeSentScreen() {
                   Enter verification code
                 </Text>
                 <Text className="text-text-muted text-md text-center font-geist-regular leading-[2] px-4 mb-[-10]">
-                  Please enter the verification code we sent to your registered
-                  email/phone number to continue.
+                  {maskedEmail
+                    ? `Please enter the verification code we sent to ${maskedEmail}.`
+                    : 'Please enter the verification code we sent to your registered email.'}
                 </Text>
               </View>
 
@@ -188,7 +231,8 @@ export default function EnterCodeSentScreen() {
                   {isResendDisabled && (
                     <Text className="text-text-placeholder">
                       {' '}
-                      ({resendTime}s)
+                      ({Math.floor(resendTime / 60)}:
+                      {(resendTime % 60).toString().padStart(2, '0')})
                     </Text>
                   )}
                 </Text>
