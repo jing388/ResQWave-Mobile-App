@@ -92,6 +92,20 @@ class AuthService {
       return data;
     } catch (error: any) {
       console.error('❌ Login error:', error);
+      console.error('🔧 Error details:');
+      console.error('  - Message:', error.message);
+      console.error('  - Type:', error.constructor.name);
+      
+      // Network error diagnostics
+      if (error.message.includes('Network request failed') || error.message.includes('fetch')) {
+        console.error('🌐 Network connectivity issue detected!');
+        console.error('  Potential causes:');
+        console.error('  1. Backend server is not running');
+        console.error('  2. Mobile device cannot reach the backend IP (192.168.1.21:5000)');
+        console.error('  3. Firewall is blocking port 5000');
+        console.error('  4. Backend is binding to localhost instead of 0.0.0.0');
+      }
+      
       throw error;
     }
   }
