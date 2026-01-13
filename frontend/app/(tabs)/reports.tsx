@@ -2,8 +2,8 @@ import { ReportCardContainer } from '@/components/reports/report-card-container'
 import { Dropdown } from '@/components/ui/dropdown';
 import { PDFViewer } from '@/components/pdf-viewer';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ChevronDown, Search } from 'lucide-react-native';
-import React, { useState } from 'react';
+import { ChevronDown, Search, RefreshCw } from 'lucide-react-native';
+import React, { useState, useEffect } from 'react';
 import {
   Animated,
   ScrollView,
@@ -13,14 +13,18 @@ import {
   TouchableOpacity,
   View,
   Modal,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import Collapsible from 'react-native-collapsible';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { reportService, ReportData } from '@/services/report-service';
+import { generateReportPDF } from '@/utils/pdf-generator';
 
 export default function ReportsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('all');
-  const [selectedYear, setSelectedYear] = useState('2023');
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
   const [collapsedSections, setCollapsedSections] = useState<{
     [key: string]: boolean;
   }>({});
@@ -32,79 +36,36 @@ export default function ReportsScreen() {
     url: string;
     title: string;
   } | null>(null);
+  const [reports, setReports] = useState<ReportData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [generatingPDF, setGeneratingPDF] = useState(false);
 
-  // Sample data structure
-  const sampleReports: {
-    [key: string]: {
-      id: string;
-      documentName: string;
-      dateAccomplished: string;
-      type: string;
-      pdfUrl: string;
-    }[];
-  } = {
-    '2023-10': [
-      {
-        id: '1',
-        documentName: 'Monthly Fire Safety Report',
-        dateAccomplished: '2023-10-15',
-        type: 'safety',
-        pdfUrl: 'https://pdfobject.com/pdf/sample.pdf',
-      },
-      {
-        id: '2',
-        documentName: 'Emergency Response Drill Summary',
-        dateAccomplished: '2023-10-12',
-        type: 'emergency',
-        pdfUrl: 'https://pdfobject.com/pdf/sample.pdf',
-      },
-      {
-        id: '3',
-        documentName: 'Equipment Maintenance Log',
-        dateAccomplished: '2023-10-08',
-        type: 'maintenance',
-        pdfUrl: 'https://pdfobject.com/pdf/sample.pdf',
-      },
-    ],
-    '2023-09': [
-      {
-        id: '4',
-        documentName: 'Quarterly Incident Analysis',
-        dateAccomplished: '2023-09-28',
-        type: 'analysis',
-        pdfUrl: 'https://pdfobject.com/pdf/sample.pdf',
-      },
-      {
-        id: '5',
-        documentName: 'Training Completion Report',
-        dateAccomplished: '2023-09-20',
-        type: 'training',
-        pdfUrl: 'https://pdfobject.com/pdf/sample.pdf',
-      },
-    ],
-    '2023-08': [
-      {
-        id: '6',
-        documentName: 'Community Outreach Summary',
-        dateAccomplished: '2023-08-25',
-        type: 'outreach',
-        pdfUrl: 'https://pdfobject.com/pdf/sample.pdf',
-      },
-      {
-        id: '7',
-        documentName: 'Resource Allocation Report',
-        dateAccomplished: '2023-08-15',
-        type: 'resource',
-        pdfUrl: 'https://pdfobject.com/pdf/sample.pdf',
-      },
-      {
-        id: '8',
-        documentName: 'Weather Impact Assessment',
-        dateAccomplished: '2023-08-05',
-        type: 'assessment',
-        pdfUrl: 'https://pdfobject.com/pdf/sample.pdf',
-      },
-    ],
+  // Fetch reports from API
+  const fetchReports = async (bypassCache = false) => {
+    try {
+      setError(null);
+      const data = await reportService.getAggregatedReports(undefined, bypassCache);
+      setReports(data);
+    } catch (err) {
+      console.error('Error fetching reports:', err);
+      setError('Failed to load reports. Please try again.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    // Bypass cache on initial load to ensure fresh data
+    fetchReports(true);
+  }, []);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    // Bypass cache when explicitly refreshing
+    fetchReports(true);
   };
 
   const monthOptions = [
@@ -123,16 +84,85 @@ export default function ReportsScreen() {
     { label: 'December', value: '12' },
   ];
 
-  const yearOptions = [
-    { label: '2023', value: '2023' },
-    { label: '2022', value: '2022' },
-    { label: '2021', value: '2021' },
-  ];
+  // Generate year options dynamically
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: 5 }, (_, i) => {
+    const year = (currentYear - i).toString();
+    return { label: year, value: year };
+  });
+
+  // Transform API data to grouped format by month-year
+  const groupedReports = React.useMemo(() => {
+    const grouped: {
+      [key: string]: {
+        id: string;
+        documentName: string;
+        dateAccomplished: string;
+        type: string;
+        pdfUrl: string;
+        reportData: ReportData;
+      }[];
+    } = {};
+
+    reports
+      .filter(report => {
+        // Filter by search query
+        if (searchQuery) {
+          const query = searchQuery.toLowerCase();
+          const matchesSearch = 
+            report.focalFirstName?.toLowerCase().includes(query) ||
+            report.focalLastName?.toLowerCase().includes(query) ||
+            report.alertType?.toLowerCase().includes(query) ||
+            report.focalAddress?.toLowerCase().includes(query);
+          if (!matchesSearch) return false;
+        }
+
+        // Filter by month and year
+        const completionDate = report.completionDate;
+        if (!completionDate) return false;
+
+        const date = new Date(completionDate);
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const year = date.getFullYear().toString();
+
+        if (selectedMonth !== 'all' && month !== selectedMonth) return false;
+        if (selectedYear !== 'all' && year !== selectedYear) return false;
+
+        return true;
+      })
+      .forEach(report => {
+        const completionDate = report.completionDate;
+        if (!completionDate) return;
+
+        const date = new Date(completionDate);
+        const year = date.getFullYear();
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const key = `${year}-${month}`;
+
+        if (!grouped[key]) {
+          grouped[key] = [];
+        }
+
+        // Create document name from report data
+        const documentName = `${report.alertType || 'Rescue'} Report - ${report.focalFirstName} ${report.focalLastName}`;
+        
+        grouped[key].push({
+          id: report.alertId,
+          documentName,
+          dateAccomplished: completionDate,
+          type: report.alertType?.toLowerCase() || 'rescue',
+          pdfUrl: '', // Will be generated when viewing
+          reportData: report,
+        });
+      });
+
+    return grouped;
+  }, [reports, searchQuery, selectedMonth, selectedYear]);
 
   const toggleSection = (sectionKey: string) => {
     // Initialize rotation value if it doesn't exist
     if (!rotationValues[sectionKey]) {
-      const newRotationValue = new Animated.Value(0); // Start at 0 (collapsed/up)
+      const newRotationValue = new Animated.Value(0);
       setRotationValues((prev) => ({
         ...prev,
         [sectionKey]: newRotationValue,
@@ -145,7 +175,7 @@ export default function ReportsScreen() {
     // Animate rotation
     const rotationValue = rotationValues[sectionKey] || new Animated.Value(0);
     Animated.timing(rotationValue, {
-      toValue: willBeCollapsed ? 0 : 1, // 0 = up (collapsed), 1 = down (expanded)
+      toValue: willBeCollapsed ? 0 : 1,
       duration: 300,
       useNativeDriver: true,
     }).start();
@@ -157,12 +187,46 @@ export default function ReportsScreen() {
     }));
   };
 
-  const handleViewDocument = (documentId: string, documentName: string, pdfUrl: string) => {
-    setSelectedPDF({
-      url: pdfUrl,
-      title: documentName,
-    });
-    setShowPDFViewer(true);
+  const handleViewDocument = async (documentId: string, documentName: string, pdfUrl: string) => {
+    try {
+      setGeneratingPDF(true);
+      
+      // Find the report data from our cached reports
+      const reportData = reports.find(r => r.alertId === documentId);
+      
+      if (!reportData) {
+        // If not found in cache, fetch detailed data
+        console.log('Report not in cache, fetching detailed data...');
+        const detailedData = await reportService.getDetailedReportData(documentId);
+        
+        // Generate PDF from the detailed data
+        const pdfUri = await generateReportPDF(detailedData);
+        
+        setSelectedPDF({
+          url: pdfUri,
+          title: documentName,
+        });
+      } else {
+        // Generate PDF from cached report data
+        const pdfUri = await generateReportPDF(reportData);
+        
+        setSelectedPDF({
+          url: pdfUri,
+          title: documentName,
+        });
+      }
+      
+      setShowPDFViewer(true);
+    } catch (error) {
+      console.error('Error viewing document:', error);
+      Alert.alert(
+        'Error',
+        'Failed to generate PDF. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setGeneratingPDF(false);
+    }
   };
 
   const formatMonthYear = (key: string) => {
@@ -202,11 +266,25 @@ export default function ReportsScreen() {
       <View className="flex-1 px-6">
         {/* Header */}
         <View className="py-6">
-          <Text className="text-white text-3xl font-geist-bold mb-2">
-            Reports
-          </Text>
+          <View className="flex-row items-center justify-between mb-2">
+            <Text className="text-white text-3xl font-geist-bold flex-1">
+              Reports
+            </Text>
+            <TouchableOpacity
+              onPress={handleRefresh}
+              disabled={refreshing}
+              className="bg-gray-800 rounded-full p-3 border border-gray-600"
+              activeOpacity={0.7}
+            >
+              <RefreshCw 
+                size={20} 
+                color={refreshing ? '#6B7280' : '#3B82F6'} 
+                style={{ transform: [{ rotate: refreshing ? '180deg' : '0deg' }] }}
+              />
+            </TouchableOpacity>
+          </View>
           <Text className="text-gray-400 text-base font-geist-regular">
-            View and analyze incident reports
+            View and analyze incident reports ({reports.length} total)
           </Text>
         </View>
 
@@ -248,8 +326,36 @@ export default function ReportsScreen() {
 
         {/* Reports List */}
         <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-          {Object.entries(sampleReports).map(([monthKey, reports]) => {
-            const isCollapsed = collapsedSections[monthKey] ?? true; // Default to collapsed (true)
+          {loading || generatingPDF ? (
+            <View className="flex-1 items-center justify-center py-20">
+              <ActivityIndicator size="large" color="#3B82F6" />
+              <Text className="text-gray-400 mt-4 font-geist-regular">
+                {generatingPDF ? 'Generating PDF...' : 'Loading reports...'}
+              </Text>
+            </View>
+          ) : error ? (
+            <View className="flex-1 items-center justify-center py-20">
+              <Text className="text-red-400 text-center font-geist-regular mb-4">
+                {error}
+              </Text>
+              <TouchableOpacity
+                onPress={handleRefresh}
+                className="bg-primary rounded-xl px-6 py-3"
+              >
+                <Text className="text-white font-geist-semibold">Retry</Text>
+              </TouchableOpacity>
+            </View>
+          ) : Object.keys(groupedReports).length === 0 ? (
+            <View className="flex-1 items-center justify-center py-20">
+              <Text className="text-gray-400 text-center font-geist-regular">
+                No reports found
+              </Text>
+            </View>
+          ) : (
+            Object.entries(groupedReports)
+              .sort(([a], [b]) => b.localeCompare(a))
+              .map(([monthKey, monthReports]) => {
+            const isCollapsed = collapsedSections[monthKey] ?? true;
 
             // Initialize rotation value if it doesn't exist
             if (!rotationValues[monthKey]) {
@@ -264,7 +370,7 @@ export default function ReportsScreen() {
               rotationValues[monthKey] || new Animated.Value(0);
             const rotateInterpolate = rotationValue.interpolate({
               inputRange: [0, 1],
-              outputRange: ['180deg', '0deg'], // 180deg = up, 0deg = down
+              outputRange: ['180deg', '0deg'],
             });
 
             return (
@@ -280,7 +386,7 @@ export default function ReportsScreen() {
                     </Text>
                     <View className="bg-gray-700 rounded-full px-3 py-1">
                       <Text className="text-gray-300 text-sm font-geist-medium">
-                        {reports.length} reports
+                        {monthReports.length} {monthReports.length === 1 ? 'report' : 'reports'}
                       </Text>
                     </View>
                   </View>
@@ -294,7 +400,7 @@ export default function ReportsScreen() {
                 {/* Collapsible Reports */}
                 <Collapsible collapsed={isCollapsed}>
                   <View>
-                    {reports.map((report) => (
+                    {monthReports.map((report) => (
                       <ReportCardContainer
                         key={report.id}
                         id={report.id}
@@ -309,7 +415,8 @@ export default function ReportsScreen() {
                 </Collapsible>
               </View>
             );
-          })}
+          })
+          )}
         </ScrollView>
       </View>
 
