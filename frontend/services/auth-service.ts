@@ -24,9 +24,19 @@ export interface VerifyCodeResponse {
   token: string;
   user: {
     id: string;
-    name: string;
+    name?: string; // Legacy field for compatibility
+    firstName?: string;
+    lastName?: string;
     email: string;
+    address?: string; // Original field (could be JSON)
+    addressText?: string; // Parsed text-only address
     role: 'focalPerson' | 'admin' | 'dispatcher';
+    newUser?: boolean;
+    neighborhood?: {
+      id: string;
+      terminalID: string;
+      terminalName: string;
+    };
   };
 }
 
@@ -95,7 +105,7 @@ class AuthService {
       console.error('🔧 Error details:');
       console.error('  - Message:', error.message);
       console.error('  - Type:', error.constructor.name);
-      
+
       // Network error diagnostics
       if (error.message.includes('Network request failed') || error.message.includes('fetch')) {
         console.error('🌐 Network connectivity issue detected!');
@@ -105,7 +115,7 @@ class AuthService {
         console.error('  3. Firewall is blocking port 5000');
         console.error('  4. Backend is binding to localhost instead of 0.0.0.0');
       }
-      
+
       throw error;
     }
   }
@@ -206,6 +216,25 @@ class AuthService {
   async isAuthenticated(): Promise<boolean> {
     const token = await this.getToken();
     return token !== null;
+  }
+
+  // Mark user as no longer new (complete onboarding)
+  async completeOnboarding(): Promise<void> {
+    try {
+      await apiFetch('/focalperson/complete-onboarding', {
+        method: 'POST',
+      });
+
+      // Update local user data
+      const user = await this.getStoredUser();
+      if (user) {
+        const updatedUser = { ...user, newUser: false };
+        await AsyncStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
+      }
+    } catch (error) {
+      console.error('Complete onboarding error:', error);
+      throw error;
+    }
   }
 
   // Mock login for development

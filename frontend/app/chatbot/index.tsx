@@ -598,11 +598,11 @@ export default function ChatbotScreen() {
         >
           {/* Welcome Text */}
           <View style={{ paddingTop: 30, alignItems: 'center', paddingBottom: 20 }}>
-            <Text style={{ textAlign: 'center', fontSize: 18 }} className='font-medium'>
+            <Text style={{ textAlign: 'center', fontSize: 20 }} className='font-medium'>
               <Text style={{ color: '#3B82F6', fontWeight: 'bold' }}>Reskwie</Text>
               <Text style={{ color: '#FFFFFF' }}> at your service!</Text>
             </Text>
-            <Text style={{ color: '#A3A3A3', fontSize: 12, textAlign: 'center', marginTop: 4 }} className='font-normal'>
+            <Text style={{ color: '#A3A3A3', fontSize: 14, textAlign: 'center', marginTop: 4 }} className='font-normal'>
               ResQWave's Chatbot assistant
             </Text>
           </View>

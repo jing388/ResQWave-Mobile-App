@@ -47,7 +47,7 @@ export default function VerificationScreen() {
 
     try {
       // Call the verify API with tempToken and code
-      await verifyCode(tempToken, code);
+      const response = await verifyCode(tempToken, code);
 
       // Show success state
       setVerificationSuccess(true);
@@ -55,9 +55,28 @@ export default function VerificationScreen() {
       // Animate the OTP inputs to green
       scale.value = withTiming(1.1, { duration: 200 });
 
-      // Redirect to home after animation
+      // Check if user is new and needs onboarding
       setTimeout(() => {
-        router.replace('/(tabs)');
+        if (response.user?.newUser) {
+          // Navigate to onboarding with user details
+          // Use the focal person's address instead of terminal info
+          const userLocation = response.user.addressText || response.user.address || 'your neighborhood';
+
+          // Use firstName if available, otherwise fall back to name or 'User'
+          const userName = response.user.firstName || response.user.name || 'User';
+
+          router.replace({
+            pathname: '/onboarding',
+            params: {
+              userName: userName,
+              neighborhoodName: userLocation,
+              userAddress: response.user.addressText || response.user.address || '',
+            },
+          });
+        } else {
+          // Go directly to main app
+          router.replace('/(tabs)');
+        }
       }, 1000);
     } catch (error: any) {
       console.error('Verification failed:', error);
