@@ -23,7 +23,7 @@ import {
 import type { LocationObject } from 'expo-location';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -70,17 +70,19 @@ export default function HomeScreen() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const mapStyleSheetRef = useRef<BottomSheetModal | null>(null);
 
-  // Pinned locations for search (derived from markers)
-  const pinnedLocations = markers.map((marker) => ({
-    id: marker.id,
-    title: marker.neighborhoodID,
-    address: marker.address,
-    latitude: marker.latitude,
-    longitude: marker.longitude,
-  }));
-
-  console.log('📍 Total markers:', markers.length);
-  console.log('📍 Pinned locations for search:', pinnedLocations.length);
+  // Pinned locations for search (derived from markers) - memoized to prevent infinite loop
+  const pinnedLocations = useMemo(() => {
+    const locations = markers.map((marker) => ({
+      id: marker.id,
+      title: marker.neighborhoodID,
+      address: marker.address,
+      latitude: marker.latitude,
+      longitude: marker.longitude,
+    }));
+    console.log('📍 Total markers:', markers.length);
+    console.log('📍 Pinned locations for search:', locations.length);
+    return locations;
+  }, [markers]);
 
   // Request location permission and center map
   useEffect(() => {
@@ -147,10 +149,6 @@ export default function HomeScreen() {
 
     loadLastSelectedNeighborhood();
   }, [markers]);
-
-  const onRegionChangeComplete = useCallback((newRegion: Region) => {
-    setRegion(newRegion);
-  }, []);
 
   const handleCenterOnUser = () => {
     if (location) {
@@ -286,155 +284,154 @@ export default function HomeScreen() {
           translucent
         />
 
-      {/* Loading Overlay */}
-      {isLoading && (
-        <View className="absolute inset-0 z-50 bg-black/50 items-center justify-center">
-          <ActivityIndicator size="large" color="#34D399" />
-        </View>
-      )}
+        {/* Loading Overlay */}
+        {isLoading && (
+          <View className="absolute inset-0 z-50 bg-black/50 items-center justify-center">
+            <ActivityIndicator size="large" color="#34D399" />
+          </View>
+        )}
 
-      {/* Map */}
-      <MapView
-        ref={mapRef}
-        style={styles.map}
-        region={region}
-        onRegionChangeComplete={onRegionChangeComplete}
-        showsUserLocation={true}
-        showsMyLocationButton={false}
-        mapType="standard"
-        scrollEnabled={!isDropdownOpen}
-        zoomEnabled={!isDropdownOpen}
-        pitchEnabled={!isDropdownOpen}
-        rotateEnabled={!isDropdownOpen}
-      >
-        {/* Map Detail Overlays */}
-        <PublicTransportOverlay visible={enabledMapDetails.has('public-transport')} />
-        <TrafficOverlay visible={enabledMapDetails.has('traffic')} />
-        <CyclingOverlay visible={enabledMapDetails.has('cycling')} />
-        <Buildings3DOverlay visible={enabledMapDetails.has('3d')} />
-        <WildfiresOverlay visible={enabledMapDetails.has('wildfires')} />
-        <AirQualityOverlay visible={enabledMapDetails.has('air-quality')} />
+        {/* Map */}
+        <MapView
+          ref={mapRef}
+          style={styles.map}
+          initialRegion={region}
+          showsUserLocation={true}
+          showsMyLocationButton={false}
+          mapType="standard"
+          scrollEnabled={!isDropdownOpen}
+          zoomEnabled={!isDropdownOpen}
+          pitchEnabled={!isDropdownOpen}
+          rotateEnabled={!isDropdownOpen}
+        >
+          {/* Map Detail Overlays */}
+          <PublicTransportOverlay visible={enabledMapDetails.has('public-transport')} />
+          <TrafficOverlay visible={enabledMapDetails.has('traffic')} />
+          <CyclingOverlay visible={enabledMapDetails.has('cycling')} />
+          <Buildings3DOverlay visible={enabledMapDetails.has('3d')} />
+          <WildfiresOverlay visible={enabledMapDetails.has('wildfires')} />
+          <AirQualityOverlay visible={enabledMapDetails.has('air-quality')} />
 
-        {/* Dynamically render all markers and their circles */}
-        {markers.map((marker) => {
-          // Get marker color based on type and selection
-          const getMarkerColor = () => {
-            // If this is the last selected neighborhood, show it in blue
-            if (activeMarkerId === marker.id) {
-              return '#007AFF'; // Blue for selected neighborhood
-            }
-            switch (marker.type) {
-              case 'own':
-                return '#34D399'; // Green for own neighborhood
-              case 'other':
-                return '#9CA3AF'; // Gray for other neighborhoods
-              default:
-                return '#007AFF'; // Blue fallback
-            }
-          };
+          {/* Dynamically render all markers and their circles */}
+          {markers.map((marker) => {
+            // Get marker color based on type and selection
+            const getMarkerColor = () => {
+              // If this is the last selected neighborhood, show it in blue
+              if (activeMarkerId === marker.id) {
+                return '#007AFF'; // Blue for selected neighborhood
+              }
+              switch (marker.type) {
+                case 'own':
+                  return '#34D399'; // Green for own neighborhood
+                case 'other':
+                  return '#9CA3AF'; // Gray for other neighborhoods
+                default:
+                  return '#007AFF'; // Blue fallback
+              }
+            };
 
-          const markerColor = getMarkerColor();
+            const markerColor = getMarkerColor();
 
-          // Circle colors for active marker
-          const circleColors = {
-            fill:
-              activeMarkerId === marker.id
-                ? 'rgba(0, 122, 255, 0.1)' // Blue for selected
-                : marker.type === 'own'
-                  ? 'rgba(52, 211, 153, 0.1)' // Green for own
-                  : 'rgba(156, 163, 175, 0.1)', // Gray for other
-            stroke:
-              activeMarkerId === marker.id
-                ? 'rgba(0, 122, 255, 0.3)' // Blue for selected
-                : marker.type === 'own'
-                  ? 'rgba(52, 211, 153, 0.3)' // Green for own
-                  : 'rgba(156, 163, 175, 0.3)', // Gray for other
-          };
+            // Circle colors for active marker
+            const circleColors = {
+              fill:
+                activeMarkerId === marker.id
+                  ? 'rgba(0, 122, 255, 0.1)' // Blue for selected
+                  : marker.type === 'own'
+                    ? 'rgba(52, 211, 153, 0.1)' // Green for own
+                    : 'rgba(156, 163, 175, 0.1)', // Gray for other
+              stroke:
+                activeMarkerId === marker.id
+                  ? 'rgba(0, 122, 255, 0.3)' // Blue for selected
+                  : marker.type === 'own'
+                    ? 'rgba(52, 211, 153, 0.3)' // Green for own
+                    : 'rgba(156, 163, 175, 0.3)', // Gray for other
+            };
 
-          return (
-            <React.Fragment key={marker.id}>
-              {/* Range Circle - only show if this marker is active */}
-              {activeMarkerId === marker.id && (
-                <Circle
-                  center={{
+            return (
+              <React.Fragment key={marker.id}>
+                {/* Range Circle - only show if this marker is active */}
+                {activeMarkerId === marker.id && (
+                  <Circle
+                    center={{
+                      latitude: marker.latitude,
+                      longitude: marker.longitude,
+                    }}
+                    radius={100}
+                    fillColor={circleColors.fill}
+                    strokeColor={circleColors.stroke}
+                    strokeWidth={2}
+                  />
+                )}
+
+                {/* Marker with custom color */}
+                <Marker
+                  key={`${marker.id}-${activeMarkerId === marker.id ? 'active' : 'inactive'}`}
+                  coordinate={{
                     latitude: marker.latitude,
                     longitude: marker.longitude,
                   }}
-                  radius={100}
-                  fillColor={circleColors.fill}
-                  strokeColor={circleColors.stroke}
-                  strokeWidth={2}
+                  onPress={() => handleMarkerPress(marker)}
+                  pinColor={markerColor}
                 />
-              )}
+              </React.Fragment>
+            );
+          })}
+        </MapView>
 
-              {/* Marker with custom color */}
-              <Marker
-                key={`${marker.id}-${activeMarkerId === marker.id ? 'active' : 'inactive'}`}
-                coordinate={{
-                  latitude: marker.latitude,
-                  longitude: marker.longitude,
-                }}
-                onPress={() => handleMarkerPress(marker)}
-                pinColor={markerColor}
-              />
-            </React.Fragment>
-          );
-        })}
-      </MapView>
+        {/* Top Bar */}
+        <View
+          className="absolute top-0 left-0 right-0 px-5 z-10 items-center"
+          style={{ paddingTop: insets.top + 10 }}
+          pointerEvents="box-none"
+        >
+          <View className="flex-row items-center w-full" pointerEvents="auto">
+            <SearchField
+              placeholder="Search locations"
+              locations={pinnedLocations}
+              onLocationSelect={handleLocationSelect}
+              onDropdownOpen={setIsDropdownOpen}
+            />
+            <Avatar
+              size="md"
+              imageSource={require('@/assets/images/sample-profile-picture.jpg')}
+              onPress={() => {
+                router.push('/profile');
+              }}
+            />
+          </View>
+        </View>
 
-      {/* Top Bar */}
-      <View
-        className="absolute top-0 left-0 right-0 px-5 z-10 items-center"
-        style={{ paddingTop: insets.top + 10 }}
-        pointerEvents="box-none"
-      >
-        <View className="flex-row items-center w-full" pointerEvents="auto">
-          <SearchField
-            placeholder="Search locations"
-            locations={pinnedLocations}
-            onLocationSelect={handleLocationSelect}
-            onDropdownOpen={setIsDropdownOpen}
-          />
-          <Avatar
-            size="md"
-            imageSource={require('@/assets/images/sample-profile-picture.jpg')}
+        {/* Action Buttons */}
+        <View
+          className="absolute right-5 items-end gap-3 pb-4"
+          style={{ bottom: 0 }}
+        >
+          <LocationButton onPress={handleCenterOnUser} />
+          <LayersButton onPress={handleLayersPress} />
+          <ChatbotButton
             onPress={() => {
-              router.push('/profile');
+              router.push('/chatbot' as any);
             }}
           />
         </View>
-      </View>
 
-      {/* Action Buttons */}
-      <View
-        className="absolute right-5 items-end gap-3 pb-4"
-        style={{ bottom: 0 }}
-      >
-        <LocationButton onPress={handleCenterOnUser} />
-        <LayersButton onPress={handleLayersPress} />
-        <ChatbotButton
-          onPress={() => {
-            router.push('/chatbot' as any);
-          }}
+        {/* Info Sheet */}
+        <InfoSheet
+          visible={sheetVisible}
+          markerData={selectedMarker}
+          onClose={hideBottomSheet}
+          onMoreInfo={handleMoreInfo}
         />
-      </View>
 
-      {/* Info Sheet */}
-      <InfoSheet
-        visible={sheetVisible}
-        markerData={selectedMarker}
-        onClose={hideBottomSheet}
-        onMoreInfo={handleMoreInfo}
-      />
-
-      {/* Map Style Bottom Sheet */}
-      <MapStyleSheet
-        bottomSheetRef={mapStyleSheetRef}
-        onStyleSelect={handleMapStyleSelect}
-        currentStyleId={currentMapStyle.id}
-        onMapDetailToggle={handleMapDetailToggle}
-        enabledMapDetails={enabledMapDetails}
-      />
+        {/* Map Style Bottom Sheet */}
+        <MapStyleSheet
+          bottomSheetRef={mapStyleSheetRef}
+          onStyleSelect={handleMapStyleSelect}
+          currentStyleId={currentMapStyle.id}
+          onMapDetailToggle={handleMapDetailToggle}
+          enabledMapDetails={enabledMapDetails}
+        />
       </ThemedView>
     </BottomSheetModalProvider>
   );
