@@ -33,12 +33,49 @@ const formatTime = (dateString: string | null): string => {
   try {
     const date = new Date(dateString);
     return date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
+      hour: 'numeric',
       minute: '2-digit',
       hour12: true,
     });
   } catch {
     return 'N/A';
+  }
+};
+
+/**
+ * Format completion time as stopwatch format (HH:MM:SS.MS)
+ * Currently inactive - displays placeholder format
+ * Example: "00:00:00.00"
+ */
+const formatCompletionTime = (dateString: string | null): string => {
+  // Placeholder stopwatch format (inactive)
+  return '00:00:00.00';
+};
+
+/**
+ * Format date and time in the required format: "Month Day, Year; H:MM (AM/PM); DayOfWeek"
+ * Example: "January 9, 2026; 3:45 AM; Thursday"
+ */
+const formatDateTimeWithDay = (dateString: string | null): string => {
+  if (!dateString) return 'N/A';
+  try {
+    const date = new Date(dateString);
+    const dateFormatted = date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+    const time = date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+    const dayOfWeek = date.toLocaleDateString('en-US', {
+      weekday: 'long',
+    });
+    return `${dateFormatted}; ${time}; ${dayOfWeek}`;
+  } catch {
+    return dateString;
   }
 };
 
@@ -94,9 +131,13 @@ const generateReportHTML = (data: DetailedReportData): string => {
           box-sizing: border-box;
         }
         
+        @page {
+          margin: 40px;
+          size: A4;
+        }
+        
         body {
           font-family: Arial, sans-serif;
-          padding: 40px;
           background: white;
           color: #000;
         }
@@ -104,146 +145,164 @@ const generateReportHTML = (data: DetailedReportData): string => {
         .page {
           max-width: 800px;
           margin: 0 auto;
+          padding: 40px;
           page-break-after: always;
+          position: relative;
+          min-height: 900px;
+        }
+        
+        .page:last-child {
+          page-break-after: avoid;
         }
         
         .header {
           text-align: center;
-          margin-bottom: 30px;
-          padding-bottom: 20px;
-          border-bottom: 3px solid #3B82F6;
+          margin-bottom: 20px;
+          padding-bottom: 10px;
+          border-bottom: 2px solid #1E40AF;
         }
         
         .header h1 {
-          font-size: 24px;
-          color: #1F2937;
-          margin-bottom: 10px;
+          font-size: 16px;
+          color: #1E40AF;
+          margin-bottom: 5px;
           font-weight: bold;
         }
         
         .header p {
-          font-size: 12px;
-          color: #6B7280;
-          line-height: 1.6;
+          font-size: 8px;
+          color: #64748B;
+          line-height: 1.3;
+          max-width: 95%;
+          margin: 0 auto;
         }
         
         .section {
-          margin-bottom: 25px;
-        }
-        
-        .section-header {
-          background: #3B82F6;
-          color: white;
-          padding: 10px 15px;
-          font-size: 14px;
-          font-weight: bold;
-          display: flex;
-          align-items: center;
           margin-bottom: 15px;
         }
         
-        .section-header-icon {
-          width: 20px;
-          height: 20px;
-          margin-right: 10px;
-          background: white;
-          border-radius: 3px;
-          display: inline-block;
+        .section-title {
+          font-size: 10px;
+          color: #1E40AF;
+          font-weight: bold;
+          margin-bottom: 6px;
         }
         
         .info-table {
           width: 100%;
           border-collapse: collapse;
           margin-bottom: 15px;
+          border: 1px solid #1E40AF;
         }
         
-        .info-table td {
-          padding: 10px;
-          border: 1px solid #E5E7EB;
-          font-size: 11px;
+        .info-table thead tr {
+          background: #1E40AF;
         }
         
-        .info-table td:first-child {
-          background: #F3F4F6;
+        .info-table thead th {
+          color: white;
           font-weight: bold;
-          width: 35%;
-          color: #374151;
+          padding: 8px 10px;
+          font-size: 10px;
+          text-align: left;
+          border: 1px solid #1E40AF;
         }
         
-        .info-table td:last-child {
+        .info-table thead th:first-child {
+          width: 40%;
+        }
+        
+        .info-table tbody td {
+          padding: 7px 10px;
+          border: 1px solid #94A3B8;
+          font-size: 9px;
+          vertical-align: top;
+        }
+        
+        .info-table tbody td:first-child {
+          color: #1E40AF;
+          font-weight: bold;
+          width: 40%;
+          background: white;
+        }
+        
+        .info-table tbody td:last-child {
+          background: white;
+          color: #1F2937;
+          word-wrap: break-word;
+        }
+        
+        .completion-table {
+          width: 100%;
+          border-collapse: collapse;
+          border: 1px solid #1E40AF;
+        }
+        
+        .completion-table thead tr {
+          background: #1E40AF;
+        }
+        
+        .completion-table thead th {
+          color: white;
+          font-weight: bold;
+          padding: 8px 10px;
+          font-size: 10px;
+          text-align: left;
+          border: 1px solid #1E40AF;
+        }
+        
+        .completion-table thead th:first-child {
+          width: 40%;
+        }
+        
+        .completion-table tbody td {
+          padding: 7px 10px;
+          border: 1px solid #94A3B8;
+          font-size: 9px;
+          vertical-align: top;
+        }
+        
+        .completion-table tbody td:first-child {
+          color: #1E40AF;
+          font-weight: bold;
+          width: 40%;
+          background: white;
+        }
+        
+        .completion-table tbody td:last-child {
           background: white;
           color: #1F2937;
         }
         
-        .list-item {
-          padding: 8px 12px;
-          background: #F9FAFB;
-          border-left: 3px solid #3B82F6;
-          margin-bottom: 8px;
-          font-size: 11px;
-          color: #1F2937;
+        .resource-list {
+          margin: 0;
+          padding: 0;
+          list-style: none;
         }
         
-        .two-column {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 20px;
-          margin-bottom: 25px;
-        }
-        
-        .completion-details {
-          background: #EFF6FF;
-          padding: 15px;
-          border-radius: 8px;
-          margin-top: 20px;
-        }
-        
-        .completion-details h3 {
-          color: #1E40AF;
-          font-size: 14px;
-          margin-bottom: 10px;
-        }
-        
-        .detail-row {
-          display: flex;
-          justify-content: space-between;
-          padding: 8px 0;
-          border-bottom: 1px solid #DBEAFE;
-          font-size: 11px;
-        }
-        
-        .detail-row:last-child {
-          border-bottom: none;
-        }
-        
-        .detail-row .label {
-          font-weight: bold;
-          color: #1E40AF;
-        }
-        
-        .detail-row .value {
+        .resource-list li {
+          padding: 3px 0;
+          font-size: 9px;
           color: #1F2937;
         }
         
         .page-number {
-          text-align: center;
-          margin-top: 30px;
-          font-size: 10px;
-          color: #6B7280;
+          position: absolute;
+          bottom: 30px;
+          right: 40px;
+          font-size: 9px;
+          color: #64748B;
         }
 
         .emergency-badge {
           display: inline-block;
           background: #FEE2E2;
           color: #991B1B;
-          padding: 4px 12px;
-          border-radius: 12px;
-          font-size: 10px;
+          padding: 3px 10px;
+          border-radius: 10px;
+          font-size: 9px;
           font-weight: bold;
-          text-transform: uppercase;
         }
-
-        .critical { background: #FEE2E2; color: #991B1B; }
       </style>
     </head>
     <body>
@@ -251,113 +310,123 @@ const generateReportHTML = (data: DetailedReportData): string => {
       <div class="page">
         <div class="header">
           <h1>Rescue Operation Report</h1>
-          <p>This document serves as the official report of the rescue operation conducted for the affected community. 
-          It records the key information, emergency context, and actions taken to ensure accountability, 
-          transparency, and reference for future disaster response efforts.</p>
+          <p>This document serves as the official report of the rescue operation conducted for the affected community. It records the key information, emergency context, and actions taken to ensure accountability, transparency, and reference for future disaster response efforts.</p>
         </div>
 
         <!-- Community & Terminal Information -->
         <div class="section">
-          <div class="section-header">
-            <span class="section-header-icon"></span>
-            Community & Terminal Information
-          </div>
+          <div class="section-title">Community & Terminal Information</div>
           <table class="info-table">
-            <tr>
-              <td>Neighborhood ID</td>
-              <td>${data.neighborhoodId || 'N/A'}</td>
-            </tr>
-            <tr>
-              <td>Focal Person's Name</td>
-              <td>${data.focalFirstName} ${data.focalLastName}</td>
-            </tr>
-            <tr>
-              <td>Focal Person's Address</td>
-              <td>${data.focalAddress || 'N/A'}</td>
-            </tr>
-            <tr>
-              <td>Focal Person's Contact Number</td>
-              <td>${data.focalContactNumber || 'N/A'}</td>
-            </tr>
+            <thead>
+              <tr>
+                <th>Neighborhood ID</th>
+                <th>${data.neighborhoodId || 'N/A'}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Focal Person's Name</td>
+                <td>${data.focalFirstName} ${data.focalLastName}</td>
+              </tr>
+              <tr>
+                <td>Focal Person's Address</td>
+                <td>${data.focalAddress || 'N/A'}</td>
+              </tr>
+              <tr>
+                <td>Focal Person's Contact Number</td>
+                <td>${data.focalContactNumber || 'N/A'}</td>
+              </tr>
+            </tbody>
           </table>
         </div>
 
         <!-- Emergency Context -->
         <div class="section">
-          <div class="section-header">
-            <span class="section-header-icon"></span>
-            Emergency Context
-          </div>
+          <div class="section-title">Emergency Context</div>
           <table class="info-table">
-            <tr>
-              <td>Emergency ID</td>
-              <td><span class="emergency-badge">${data.emergencyId || 'N/A'}</span></td>
-            </tr>
-            <tr>
-              <td>Current Situation / Water Level</td>
-              <td>${data.waterLevel || 'N/A'}</td>
-            </tr>
-            <tr>
-              <td>Urgency of Evacuation</td>
-              <td>${data.urgencyOfEvacuation || 'N/A'}</td>
-            </tr>
-            <tr>
-              <td>Hazards Present</td>
-              <td>${data.hazardPresent || 'N/A'}</td>
-            </tr>
-            <tr>
-              <td>Accessibility</td>
-              <td>${data.accessibility || 'N/A'}</td>
-            </tr>
-            <tr>
-              <td>Resource Needs</td>
-              <td>${data.resourceNeeds || 'N/A'}</td>
-            </tr>
-            <tr>
-              <td>Other Information</td>
-              <td>${data.otherInformation || 'N/A'}</td>
-            </tr>
-            <tr>
-              <td>Time of Re-Cht</td>
-              <td>${formatDate(data.dateTimeOccurred)} ${formatTime(data.dateTimeOccurred)}</td>
-            </tr>
-            <tr>
-              <td>Alert Type</td>
-              <td>${data.alertType || 'Critical'}</td>
-            </tr>
+            <thead>
+              <tr>
+                <th>Emergency ID</th>
+                <th>${data.emergencyId || 'N/A'}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Current Situation / Water Level</td>
+                <td>${data.waterLevel || 'N/A'}</td>
+              </tr>
+              <tr>
+                <td>Urgency of Evacuation</td>
+                <td>${data.urgencyOfEvacuation || 'N/A'}</td>
+              </tr>
+              <tr>
+                <td>Hazards Present</td>
+                <td>${data.hazardPresent || 'N/A'}</td>
+              </tr>
+              <tr>
+                <td>Accessibility</td>
+                <td>${data.accessibility || 'N/A'}</td>
+              </tr>
+              <tr>
+                <td>Resource Needs</td>
+                <td>${data.resourceNeeds || 'N/A'}</td>
+              </tr>
+              <tr>
+                <td>Other Information</td>
+                <td>${data.otherInformation || 'N/A'}</td>
+              </tr>
+              <tr>
+                <td>Time of Rescue</td>
+                <td>${formatDateTimeWithDay(data.dateTimeOccurred)}</td>
+              </tr>
+              <tr>
+                <td>Alert Type</td>
+                <td>${data.alertType || 'Critical'}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Rescue Completion Details -->
+        <div class="section">
+          <div class="section-title">Rescue Completion Details</div>
+          <table class="completion-table">
+            <thead>
+              <tr>
+                <th>Rescue Completion Time</th>
+                <th>${formatCompletionTime(data.completionDate)}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>No. of Personnel Deployed</td>
+                <td>${data.noOfPersonnel || 'N/A'}</td>
+              </tr>
+              <tr>
+                <td>Resources Used</td>
+                <td>
+                  ${resourcesList.length > 0 ? `
+                    <ul class="resource-list">
+                      ${resourcesList.map(resource => `<li>${resource}</li>`).join('')}
+                    </ul>
+                  ` : 'N/A'}
+                </td>
+              </tr>
+              <tr>
+                <td>Actions Taken</td>
+                <td>
+                  ${actionsList.length > 0 ? `
+                    <ul class="resource-list">
+                      ${actionsList.map(action => `<li>${action}</li>`).join('')}
+                    </ul>
+                  ` : 'N/A'}
+                </td>
+              </tr>
+            </tbody>
           </table>
         </div>
 
         <div class="page-number">Page | 1</div>
-      </div>
-
-      <!-- Page 2 -->
-      <div class="page">
-        <div class="header">
-          <h1>Rescue Operation Report</h1>
-          <p>Rescue Completion Details</p>
-        </div>
-
-        <!-- Rescue Completion Details -->
-        <div class="completion-details">
-          <h3>Rescue Completion Time</h3>
-          <div class="detail-row">
-            <span class="label">Completion Time</span>
-            <span class="value">${formatTime(data.completionDate)}</span>
-          </div>
-          <div class="detail-row">
-            <span class="label">No. of Personnel Deployed</span>
-            <span class="value">${data.noOfPersonnel || 'N/A'}</span>
-          </div>
-          ${actionsList.length > 0 ? `
-          <div class="detail-row">
-            <span class="label">Actions Taken</span>
-            <span class="value">${actionsList.join(', ')}</span>
-          </div>
-          ` : ''}
-        </div>
-
-        <div class="page-number">Page | 2</div>
       </div>
     </body>
     </html>

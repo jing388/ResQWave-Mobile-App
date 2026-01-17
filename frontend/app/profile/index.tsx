@@ -291,7 +291,7 @@ export default function ProfileScreen() {
                     <Avatar
                       size="xl"
                       imageSource={
-                        userData?.photo
+                        userData?.photo && typeof userData.photo === 'string'
                           ? { uri: userData.photo.startsWith('http') ? userData.photo : `${API_BASE_URL}${userData.photo}` }
                           : require('@/assets/images/sample-profile-picture.jpg')
                       }
