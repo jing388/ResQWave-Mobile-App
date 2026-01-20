@@ -3,9 +3,10 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Tabs } from 'expo-router';
 import { FileText, Info, Map } from 'lucide-react-native';
+import React from 'react';
 import { View } from 'react-native';
 
-const TabBarIcon = ({
+const TabBarIcon = React.memo(({
   focused,
   IconComponent,
   size = 24,
@@ -19,7 +20,8 @@ const TabBarIcon = ({
   >
     <IconComponent size={size} color={focused ? '#3B82F6' : '#FFFFFF'} />
   </View>
-);
+));
+TabBarIcon.displayName = 'TabBarIcon';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -32,6 +34,8 @@ export default function TabLayout() {
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarShowLabel: false,
+        lazy: true,
+        tabBarHideOnKeyboard: true,
         tabBarStyle: {
           paddingTop: 15,
           height: 80,

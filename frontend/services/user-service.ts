@@ -1,4 +1,8 @@
 import { apiFetch } from '@/lib/api-client';
+import { 
+  saveProfileToCache, 
+  getProfileFromCache
+} from './profile-cache';
 
 export interface UserProfile {
   id: string;
@@ -20,10 +24,24 @@ export interface UpdateProfileRequest {
   address?: string;
 }
 
-// Fetch current user profile
-export const getProfile = async (): Promise<UserProfile> => {
+// Fetch current user profile with caching support
+export const getProfile = async (options?: { forceRefresh?: boolean }): Promise<UserProfile> => {
   try {
+    // Check cache first unless force refresh is requested
+    if (!options?.forceRefresh) {
+      const cachedProfile = await getProfileFromCache();
+      if (cachedProfile) {
+        return cachedProfile;
+      }
+    }
+
+    // Fetch from API
+    console.log('Fetching fresh profile data from API...');
     const data = await apiFetch<{ user: UserProfile }>('/me');
+    
+    // Save to cache
+    await saveProfileToCache(data.user);
+    
     return data.user;
   } catch (error) {
     console.error('Error fetching user profile:', error);
@@ -38,6 +56,10 @@ export const updateProfile = async (updates: UpdateProfileRequest): Promise<User
       method: 'PUT',
       body: JSON.stringify(updates),
     });
+    
+    // Update cache with new data
+    await saveProfileToCache(data.user);
+    
     return data.user;
   } catch (error) {
     console.error('Error updating user profile:', error);
@@ -83,6 +105,9 @@ export const uploadProfilePicture = async (imageUri: string): Promise<UserProfil
       method: 'POST',
       body: formData,
     });
+
+    // Update cache with new profile data
+    await saveProfileToCache(data.user);
 
     return data.user;
   } catch (error) {

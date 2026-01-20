@@ -25,7 +25,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import MapView, { Circle, Marker, Region } from 'react-native-maps';
+import MapView, { Circle, Marker, Region, UrlTile } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomSheetModalProvider, BottomSheetModal } from '@gorhom/bottom-sheet';
 
@@ -141,7 +141,7 @@ export default function HomeScreen() {
     loadLastSelectedNeighborhood();
   }, [markers]);
 
-  const handleCenterOnUser = () => {
+  const handleCenterOnUser = useCallback(() => {
     if (location) {
       mapRef.current?.animateToRegion({
         latitude: location.coords.latitude,
@@ -150,9 +150,9 @@ export default function HomeScreen() {
         longitudeDelta: LONGITUDE_DELTA,
       });
     }
-  };
+  }, [location]);
 
-  const handleMarkerPress = (marker: MarkerData) => {
+  const handleMarkerPress = useCallback((marker: MarkerData) => {
     console.log('📍 [handleMarkerPress] Marker pressed:', marker.neighborhoodID);
     console.log('📍 [handleMarkerPress] Marker TYPE:', marker.type);
     console.log('📍 [handleMarkerPress] Full marker:', JSON.stringify(marker, null, 2));
@@ -171,15 +171,15 @@ export default function HomeScreen() {
 
     setSelectedMarker(marker);
     setSheetVisible(true);
-  };
+  }, []);
 
-  const hideBottomSheet = () => {
+  const hideBottomSheet = useCallback(() => {
     setSheetVisible(false);
     setSelectedMarker(null);
     setActiveMarkerId(null);
-  };
+  }, []);
 
-  const handleMoreInfo = async (markerData: MarkerData) => {
+  const handleMoreInfo = useCallback(async (markerData: MarkerData) => {
     console.log('🔍 [index] ========================================');
     console.log('🔍 [index] More info requested for:', markerData.neighborhoodID);
     console.log('🔍 [index] Marker ID (database ID):', markerData.id);
@@ -203,7 +203,7 @@ export default function HomeScreen() {
       pathname: '/(tabs)/about-neighborhood',
       params: { neighborhoodId: markerData.id }
     });
-  };
+  }, [hideBottomSheet]);
 
   const handleLocationSelect = (location: any) => {
     // Find the marker from our markers array
@@ -245,46 +245,54 @@ export default function HomeScreen() {
           initialRegion={region}
           showsUserLocation={true}
           showsMyLocationButton={false}
-          mapType="standard"
+          mapType={currentMapStyle.id === 'satellite' ? 'satellite' : 'standard'}
           scrollEnabled={!isDropdownOpen}
           zoomEnabled={!isDropdownOpen}
           pitchEnabled={!isDropdownOpen}
           rotateEnabled={!isDropdownOpen}
         >
+          {/* Custom Map Tiles for terrain style only */}
+          {currentMapStyle.id === 'terrain' && (
+            <UrlTile
+              urlTemplate={currentMapStyle.urlTemplate}
+              maximumZ={19}
+              flipY={false}
+              zIndex={-1}
+            />
+          )}
+          
           {/* Dynamically render all markers and their circles */}
           {markers.map((marker) => {
-            // Get marker color based on type and selection
+            // Get marker color based on type (keep owned neighborhoods green even when selected)
             const getMarkerColor = () => {
-              // If this is the last selected neighborhood, show it in blue
+              // Keep green (own) neighborhoods green even when selected
+              if (marker.type === 'own') {
+                return '#34D399'; // Green for own neighborhood (always)
+              }
+              // For other neighborhoods, show blue when selected
               if (activeMarkerId === marker.id) {
                 return '#007AFF'; // Blue for selected neighborhood
               }
-              switch (marker.type) {
-                case 'own':
-                  return '#34D399'; // Green for own neighborhood
-                case 'other':
-                  return '#9CA3AF'; // Gray for other neighborhoods
-                default:
-                  return '#007AFF'; // Blue fallback
-              }
+              // Default gray for unselected other neighborhoods
+              return '#9CA3AF'; // Gray for other neighborhoods
             };
 
             const markerColor = getMarkerColor();
 
-            // Circle colors for active marker
+            // Circle colors for active marker - match the marker color
             const circleColors = {
               fill:
-                activeMarkerId === marker.id
-                  ? 'rgba(0, 122, 255, 0.1)' // Blue for selected
-                  : marker.type === 'own'
-                    ? 'rgba(52, 211, 153, 0.1)' // Green for own
-                    : 'rgba(156, 163, 175, 0.1)', // Gray for other
+                marker.type === 'own'
+                  ? 'rgba(52, 211, 153, 0.1)' // Green for own (always)
+                  : activeMarkerId === marker.id
+                    ? 'rgba(0, 122, 255, 0.1)' // Blue for selected other
+                    : 'rgba(156, 163, 175, 0.1)', // Gray for unselected other
               stroke:
-                activeMarkerId === marker.id
-                  ? 'rgba(0, 122, 255, 0.3)' // Blue for selected
-                  : marker.type === 'own'
-                    ? 'rgba(52, 211, 153, 0.3)' // Green for own
-                    : 'rgba(156, 163, 175, 0.3)', // Gray for other
+                marker.type === 'own'
+                  ? 'rgba(52, 211, 153, 0.3)' // Green for own (always)
+                  : activeMarkerId === marker.id
+                    ? 'rgba(0, 122, 255, 0.3)' // Blue for selected other
+                    : 'rgba(156, 163, 175, 0.3)', // Gray for unselected other
             };
 
             return (

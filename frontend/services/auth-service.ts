@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiFetch } from '@/lib/api-client';
+import { clearProfileCache } from './profile-cache';
 
 // Types
 export interface LoginCredentials {
@@ -213,6 +214,8 @@ class AuthService {
   // Clear auth data
   async clearAuthData(): Promise<void> {
     await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
+    // Also clear profile cache
+    await clearProfileCache();
   }
 
   // Check if user is authenticated

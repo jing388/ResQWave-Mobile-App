@@ -5,15 +5,16 @@ import {
   ThemeProvider,
 } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { View, Text } from 'react-native';
 import 'react-native-reanimated';
 import '../global.css';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { setGlobalLogoutCallback } from '@/lib/api-client';
 
 // Load Geist fonts
 import {
@@ -30,6 +31,7 @@ import {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const router = useRouter();
 
   const [fontsLoaded] = useFonts({
     'geist-thin': Geist_100Thin,
@@ -42,6 +44,15 @@ export default function RootLayout() {
     'geist-extrabold': Geist_800ExtraBold,
     'geist-black': Geist_900Black,
   });
+
+  // Set up global logout callback for 401/403 errors
+  useEffect(() => {
+    setGlobalLogoutCallback(() => {
+      console.log('🔄 Session expired, redirecting to homescreen...');
+      // Navigate to homescreen
+      router.replace('/');
+    });
+  }, [router]);
 
   // Show loading screen while fonts are loading
   if (!fontsLoaded) {
@@ -62,21 +73,27 @@ export default function RootLayout() {
           <Stack
             screenOptions={{
               headerShown: false,
-              animation: 'slide_from_right',
+              animation: 'fade_from_bottom',
+              animationDuration: 200,
+              animationTypeForReplace: 'push',
+              gestureEnabled: true,
+              gestureDirection: 'horizontal',
             }}
           >
             <Stack.Screen
               name="index"
               options={{
                 headerShown: false,
-                animation: 'slide_from_right',
+                animation: 'fade',
+                animationDuration: 150,
               }}
             />
             <Stack.Screen
               name="(tabs)"
               options={{
                 headerShown: false,
-                animation: 'slide_from_right',
+                animation: 'fade',
+                animationDuration: 200,
               }}
             />
             <Stack.Screen
@@ -84,6 +101,7 @@ export default function RootLayout() {
               options={{
                 headerShown: false,
                 animation: 'slide_from_right',
+                animationDuration: 200,
               }}
             />
             <Stack.Screen

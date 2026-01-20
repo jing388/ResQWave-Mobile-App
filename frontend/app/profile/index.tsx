@@ -6,7 +6,7 @@ import {
 } from '@gorhom/bottom-sheet';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import {
   Camera,
   ChevronLeft,
@@ -14,10 +14,11 @@ import {
   Lock,
   Logs,
 } from 'lucide-react-native';
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import {
   Alert,
   Platform,
+  RefreshControl,
   ScrollView,
   StatusBar,
   Text,
@@ -35,6 +36,7 @@ export default function ProfileScreen() {
   // User data state
   const [userData, setUserData] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
 
   // Load user profile on mount
@@ -49,6 +51,16 @@ export default function ProfileScreen() {
     });
   }, []);
 
+  // Reload profile when screen comes into focus (from cache if available)
+  useFocusEffect(
+    useCallback(() => {
+      // Reload profile from cache when returning to this screen
+      loadUserProfile(false).catch(error => {
+        console.error('Failed to reload profile on focus:', error);
+      });
+    }, [])
+  );
+
   const requestPermissions = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
@@ -60,10 +72,11 @@ export default function ProfileScreen() {
     }
   };
 
-  const loadUserProfile = async () => {
+  const loadUserProfile = async (forceRefresh: boolean = false) => {
     try {
       setLoading(true);
-      const profile = await getProfile();
+      // Pass forceRefresh option to bypass cache when needed
+      const profile = await getProfile({ forceRefresh });
       setUserData(profile);
     } catch (error) {
       console.error('Failed to load user profile:', error);
@@ -81,6 +94,17 @@ export default function ProfileScreen() {
       setLoading(false);
     }
   };
+
+  // Pull-to-refresh handler
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      // Force refresh from API
+      await loadUserProfile(true);
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
 
   const handleGoBack = () => {
     router.back();
@@ -215,11 +239,19 @@ export default function ProfileScreen() {
     router.push('/profile/logs');
   };
 
-  const handleSignOut = () => {
-    // TODO: Implement sign out logic
-    console.log('Signing out...');
-    // Clear user data, tokens, etc.
-    router.replace('/login');
+  const handleSignOut = async () => {
+    try {
+      console.log('Signing out...');
+      // Clear user data, tokens, etc.
+      const { authService } = await import('@/services/auth-service');
+      await authService.logout();
+      // Navigate to homescreen
+      router.replace('/');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Still navigate to homescreen even if logout fails
+      router.replace('/');
+    }
   };
 
   return (
@@ -263,6 +295,14 @@ export default function ProfileScreen() {
             className="flex-1 px-5"
             contentContainerStyle={{ paddingBottom: 120 }}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor="#3B82F6"
+                colors={['#3B82F6']}
+              />
+            }
           >
             {/* Back Button and Title */}
             <View style={{ paddingTop: insets.top + 16 }}>
@@ -287,6 +327,7 @@ export default function ProfileScreen() {
                   <TouchableOpacity
                     onPress={handleAvatarPress}
                     activeOpacity={0.8}
+                    disabled={uploadingImage}
                   >
                     <Avatar
                       size="xl"
@@ -297,7 +338,11 @@ export default function ProfileScreen() {
                       }
                     />
                     <View className="bg-default-primary absolute bottom-0 right-0 w-10 h-10 rounded-full items-center justify-center">
-                      <Camera size={20} color="white" />
+                      {uploadingImage ? (
+                        <View className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Camera size={20} color="white" />
+                      )}
                     </View>
                   </TouchableOpacity>
                 )}
