@@ -7,14 +7,14 @@ import {
 import { useFonts } from 'expo-font';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { View, Text } from 'react-native';
 import 'react-native-reanimated';
 import '../global.css';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { setGlobalLogoutCallback } from '@/lib/api-client';
+import { WithSplashScreen } from '@/components/ui/splash-screen';
 
 // Load Geist fonts
 import {
@@ -32,6 +32,7 @@ import {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const router = useRouter();
+  const [isAppReady, setIsAppReady] = useState(false);
 
   const [fontsLoaded] = useFonts({
     'geist-thin': Geist_100Thin,
@@ -49,19 +50,24 @@ export default function RootLayout() {
   useEffect(() => {
     setGlobalLogoutCallback(() => {
       console.log('🔄 Session expired, redirecting to homescreen...');
-      // Navigate to homescreen
       router.replace('/');
     });
   }, [router]);
 
-  // Show loading screen while fonts are loading
-  if (!fontsLoaded) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1F2937' }}>
-        <Text style={{ color: '#F9FAFB', fontSize: 16, fontFamily: 'System' }}>Loading fonts...</Text>
-      </View>
-    );
-  }
+  // Initialize app
+  useEffect(() => {
+    const initialize = async () => {
+      // Wait for fonts to load - THIS IS CRITICAL
+      if (!fontsLoaded) return;
+
+      // Small delay to ensure everything is ready
+      await new Promise(resolve => setTimeout(resolve, 2500));
+
+      setIsAppReady(true);
+    };
+
+    initialize();
+  }, [fontsLoaded]); // fontsLoaded in dependency array
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -69,119 +75,120 @@ export default function RootLayout() {
         <ThemeProvider
           value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}
         >
-          <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              animation: 'fade_from_bottom',
-              animationDuration: 200,
-              animationTypeForReplace: 'push',
-              gestureEnabled: true,
-              gestureDirection: 'horizontal',
-            }}
-          >
-            <Stack.Screen
-              name="index"
-              options={{
+          <WithSplashScreen isAppReady={isAppReady}>
+            <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+            <Stack
+              screenOptions={{
                 headerShown: false,
-                animation: 'fade',
-                animationDuration: 150,
-              }}
-            />
-            <Stack.Screen
-              name="(tabs)"
-              options={{
-                headerShown: false,
-                animation: 'fade',
+                animation: 'fade_from_bottom',
                 animationDuration: 200,
+                animationTypeForReplace: 'push',
+                gestureEnabled: true,
+                gestureDirection: 'horizontal',
               }}
-            />
-            <Stack.Screen
-              name="login/index"
-              options={{
-                headerShown: false,
-                animation: 'slide_from_right',
-                animationDuration: 200,
-              }}
-            />
-            <Stack.Screen
-              name="login/forgot-password/find-your-account"
-              options={{
-                headerShown: false,
-                animation: 'slide_from_right',
-              }}
-            />
-            <Stack.Screen
-              name="login/forgot-password/enter-code-sent"
-              options={{
-                headerShown: false,
-                animation: 'slide_from_right',
-              }}
-            />
-            <Stack.Screen
-              name="login/forgot-password/reset-password"
-              options={{
-                headerShown: false,
-                animation: 'slide_from_right',
-              }}
-            />
-            <Stack.Screen
-              name="verification/index"
-              options={{
-                headerShown: false,
-                animation: 'slide_from_right',
-              }}
-            />
-            <Stack.Screen
-              name="profile/index"
-              options={{
-                headerShown: false,
-                presentation: 'transparentModal',
-                animation: 'slide_from_right',
-              }}
-            />
-            <Stack.Screen
-              name="profile/password"
-              options={{
-                headerShown: false,
-                presentation: 'transparentModal',
-                animation: 'slide_from_right',
-              }}
-            />
-            <Stack.Screen
-              name="profile/first-and-last-name"
-              options={{
-                headerShown: false,
-                presentation: 'transparentModal',
-                animation: 'slide_from_right',
-              }}
-            />
-            <Stack.Screen
-              name="profile/phone-number"
-              options={{
-                headerShown: false,
-                presentation: 'transparentModal',
-                animation: 'slide_from_right',
-              }}
-            />
-            <Stack.Screen
-              name="profile/email"
-              options={{
-                headerShown: false,
-                presentation: 'transparentModal',
-                animation: 'slide_from_right',
-              }}
-            />
-            <Stack.Screen
-              name="chatbot/index"
-              options={{
-                headerShown: false,
-                presentation: 'transparentModal',
-                animation: 'slide_from_right',
-              }}
-            />
-          </Stack>
-          <StatusBar style="light" />
+            >
+              <Stack.Screen
+                name="index"
+                options={{
+                  headerShown: false,
+                  animation: 'fade',
+                  animationDuration: 150,
+                }}
+              />
+              <Stack.Screen
+                name="(tabs)"
+                options={{
+                  headerShown: false,
+                  animation: 'fade',
+                  animationDuration: 200,
+                }}
+              />
+              <Stack.Screen
+                name="login/index"
+                options={{
+                  headerShown: false,
+                  animation: 'none',
+                }}
+              />
+              <Stack.Screen
+                name="login/forgot-password/find-your-account"
+                options={{
+                  headerShown: false,
+                  animation: 'slide_from_right',
+                }}
+              />
+              <Stack.Screen
+                name="login/forgot-password/enter-code-sent"
+                options={{
+                  headerShown: false,
+                  animation: 'slide_from_right',
+                }}
+              />
+              <Stack.Screen
+                name="login/forgot-password/reset-password"
+                options={{
+                  headerShown: false,
+                  animation: 'slide_from_right',
+                }}
+              />
+              <Stack.Screen
+                name="verification/index"
+                options={{
+                  headerShown: false,
+                  animation: 'slide_from_right',
+                }}
+              />
+              <Stack.Screen
+                name="profile/index"
+                options={{
+                  headerShown: false,
+                  presentation: 'transparentModal',
+                  animation: 'slide_from_right',
+                }}
+              />
+              <Stack.Screen
+                name="profile/password"
+                options={{
+                  headerShown: false,
+                  presentation: 'transparentModal',
+                  animation: 'slide_from_right',
+                }}
+              />
+              <Stack.Screen
+                name="profile/first-and-last-name"
+                options={{
+                  headerShown: false,
+                  presentation: 'transparentModal',
+                  animation: 'slide_from_right',
+                }}
+              />
+              <Stack.Screen
+                name="profile/phone-number"
+                options={{
+                  headerShown: false,
+                  presentation: 'transparentModal',
+                  animation: 'slide_from_right',
+                }}
+              />
+              <Stack.Screen
+                name="profile/email"
+                options={{
+                  headerShown: false,
+                  presentation: 'transparentModal',
+                  animation: 'slide_from_right',
+                }}
+              />
+              <Stack.Screen
+                name="chatbot/index"
+                options={{
+                  headerShown: false,
+                  presentation: 'transparentModal',
+                  animation: 'slide_from_right',
+                }}
+              />
+            </Stack>
+            <StatusBar style="light" />
+          </WithSplashScreen>
         </ThemeProvider>
       </BottomSheetModalProvider>
     </GestureHandlerRootView>
