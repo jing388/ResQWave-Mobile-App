@@ -22,6 +22,7 @@ export interface ResetPasswordResponse {
 const RESET_USER_ID_KEY = '@password_reset_user_id';
 const RESET_CODE_KEY = '@password_reset_code';
 const RESET_EMAIL_KEY = '@password_reset_email';
+const RESET_RECOVERED_KEY = '@password_reset_recovered';
 
 class PasswordResetService {
   /**
@@ -50,6 +51,12 @@ class PasswordResetService {
       // Store userID and masked email for next steps
       await AsyncStorage.setItem(RESET_USER_ID_KEY, data.userID.toString());
       await AsyncStorage.setItem(RESET_EMAIL_KEY, data.maskedEmail);
+
+      // Detect if backend indicates the account was already recovered
+      const alreadyRecovered = /already\s+recover|already\s+recovered|account\s+recovered/i.test(
+        String(data.message || ''),
+      );
+      await AsyncStorage.setItem(RESET_RECOVERED_KEY, alreadyRecovered ? 'true' : 'false');
 
       // Store expiry time
       const expiryTime = Date.now() + data.expiresInMinutes * 60 * 1000;
@@ -157,12 +164,15 @@ class PasswordResetService {
     userID: string | null;
     maskedEmail: string | null;
     code: string | null;
+    recovered: boolean | null;
   }> {
     const userID = await AsyncStorage.getItem(RESET_USER_ID_KEY);
     const maskedEmail = await AsyncStorage.getItem(RESET_EMAIL_KEY);
     const code = await AsyncStorage.getItem(RESET_CODE_KEY);
+    const recoveredRaw = await AsyncStorage.getItem(RESET_RECOVERED_KEY);
+    const recovered = recoveredRaw === 'true' ? true : recoveredRaw === 'false' ? false : null;
 
-    return { userID, maskedEmail, code };
+    return { userID, maskedEmail, code, recovered };
   }
 
   /**
@@ -174,6 +184,7 @@ class PasswordResetService {
       RESET_CODE_KEY,
       RESET_EMAIL_KEY,
       '@password_reset_expiry',
+      RESET_RECOVERED_KEY,
     ]);
     console.log('🧹 Password reset session cleared');
   }

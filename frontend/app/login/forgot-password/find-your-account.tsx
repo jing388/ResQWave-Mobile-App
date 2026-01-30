@@ -53,20 +53,9 @@ export default function FindYourAccountScreen() {
 
       console.log('Password reset requested:', response);
 
-      // Show success message with masked email
-      Alert.alert(
-        'Verification Code Sent',
-        `A 6-digit verification code has been sent to ${response.maskedEmail}. The code will expire in ${response.expiresInMinutes} minutes.`,
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              // Navigate to enter code sent screen
-              router.push('/login/forgot-password/enter-code-sent');
-            },
-          },
-        ],
-      );
+      // Navigate directly to the enter-code-sent screen
+      // (session data stored by the service contains masked email and recovered flag)
+      router.push('/login/forgot-password/enter-code-sent');
     } catch (error: any) {
       console.error('Password reset error:', error);
       const errorMessage =

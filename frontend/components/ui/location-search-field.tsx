@@ -9,6 +9,7 @@ interface LocationItem {
   address: string;
   latitude: number;
   longitude: number;
+  type?: string;
 }
 
 interface SearchFieldProps {
@@ -17,6 +18,7 @@ interface SearchFieldProps {
   locations?: LocationItem[];
   className?: string;
   onDropdownOpen?: (isOpen: boolean) => void;
+  selectedLocationId?: string | null;
 }
 
 export function SearchField({
@@ -25,17 +27,54 @@ export function SearchField({
   locations = [],
   className = '',
   onDropdownOpen,
+  selectedLocationId = null,
 }: SearchFieldProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<LocationItem | null>(
     null,
   );
+  const listRef = React.useRef<any>(null);
+  const ITEM_HEIGHT = 72; // approximate height for each list item (px)
   const handleLocationSelect = (location: LocationItem) => {
     setSelectedLocation(location);
     setIsOpen(false);
     onDropdownOpen?.(false);
     onLocationSelect?.(location);
   };
+
+  // Sync internal selectedLocation when parent-controlled selectedLocationId changes
+  React.useEffect(() => {
+    if (!selectedLocationId) {
+      setSelectedLocation(null);
+      return;
+    }
+    const found = locations.find((l) => l.id === selectedLocationId) || null;
+    setSelectedLocation(found as LocationItem | null);
+  }, [selectedLocationId, locations]);
+
+  // Scroll the FlatList to the selected item when dropdown opens or selection changes
+  const scrollToSelected = (id?: string | null) => {
+    if (!id || !listRef.current || locations.length === 0) return;
+    const idx = locations.findIndex((l) => l.id === id);
+    if (idx === -1) return;
+    const viewPosition = idx <= 1 ? 0 : 0.5;
+    // Small delay to ensure FlatList has rendered
+    setTimeout(() => {
+      try {
+        listRef.current.scrollToIndex({ index: idx, animated: true, viewPosition });
+      } catch (e) {
+        // Fallback: calculate offset with small padding so item isn't flush to edge
+        const offset = Math.max(0, idx * ITEM_HEIGHT - 8);
+        listRef.current.scrollToOffset({ offset, animated: true });
+      }
+    }, 80);
+  };
+
+  React.useEffect(() => {
+    if (isOpen) {
+      scrollToSelected(selectedLocationId);
+    }
+  }, [isOpen, selectedLocationId, locations]);
 
   const handleDropdownToggle = () => {
     const newIsOpen = !isOpen;
@@ -102,29 +141,47 @@ export function SearchField({
               indicatorStyle="white"
               nestedScrollEnabled={true}
               scrollEnabled={true}
+              ref={listRef}
+              getItemLayout={(data, index) => ({ length: ITEM_HEIGHT, offset: ITEM_HEIGHT * index, index })}
+              contentContainerStyle={{ paddingTop: 6, paddingBottom: 12 }}
+              onScrollToIndexFailed={({ index, highestMeasuredFrameIndex, averageItemLength }) => {
+                const offset = Math.max(0, index * (averageItemLength || ITEM_HEIGHT) - 8);
+                listRef.current?.scrollToOffset({ offset, animated: true });
+              }}
               renderItem={({ item: location, index }) => (
                 <TouchableOpacity
                   className={`px-4 py-3 flex-row items-start gap-3 ${
                     index !== locations.length - 1
                       ? 'border-b border-gray-700'
                       : ''
-                  } ${selectedLocation?.id === location.id ? 'bg-gray-700' : ''}`}
+                  } ${selectedLocation?.id === location.id
+                    ? location.type === 'own'
+                      ? 'bg-green-800'
+                      : 'bg-blue-800'
+                    : ''
+                  }`}
                   onPress={() => handleLocationSelect(location)}
                 >
-                  <View className="bg-blue-500/20 rounded-lg p-2 mt-0.5">
-                    <MapPin size={14} color="#60A5FA" />
+                  <View className={`${location.type === 'own' ? 'bg-green-500/20' : 'bg-blue-500/20'} rounded-lg p-2 mt-0.5`}>
+                    <MapPin size={14} color={location.type === 'own' ? '#34D399' : '#60A5FA'} />
                   </View>
                   <View className="flex-1">
                     <Text
                       className={`text-base font-geist-semibold mb-1 ${
                         selectedLocation?.id === location.id
-                          ? 'text-blue-400'
+                          ? location.type === 'own'
+                            ? 'text-green-300'
+                            : 'text-blue-300'
                           : 'text-white'
                       }`}
                     >
                       {location.title}
                     </Text>
-                    <Text className="text-gray-400 text-sm font-geist-regular">
+                    <Text
+                      className={`text-sm font-geist-regular ${
+                        selectedLocation?.id === location.id ? 'text-white' : 'text-gray-400'
+                      }`}
+                    >
                       {location.address}
                     </Text>
                   </View>

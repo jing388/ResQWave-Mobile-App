@@ -29,6 +29,7 @@ export default function EnterCodeSentScreen() {
   const [isResendDisabled, setIsResendDisabled] = useState(true);
   const [isVerifying, setIsVerifying] = useState(false);
   const [maskedEmail, setMaskedEmail] = useState('');
+  const [isRecovered, setIsRecovered] = useState(false);
 
   const isCodeComplete = code.length === 6;
 
@@ -42,6 +43,9 @@ export default function EnterCodeSentScreen() {
       const sessionData = await passwordResetService.getResetSessionData();
       if (sessionData.maskedEmail) {
         setMaskedEmail(sessionData.maskedEmail);
+        if (sessionData.recovered === true) {
+          setIsRecovered(true);
+        }
       } else {
         // No session found, redirect back
         Alert.alert(
@@ -236,6 +240,14 @@ export default function EnterCodeSentScreen() {
                     </Text>
                   )}
                 </Text>
+                {/* Show recovered notice below the resend timer if the account is already recovered */}
+                {isRecovered && (
+                  <View className="mt-3 px-4">
+                    <Text className="text-text-accent text-sm text-center font-geist-regular">
+                      This account has already been recovered. If this wasn't you, please contact support.
+                    </Text>
+                  </View>
+                )}
               </View>
             </View>
           </ScrollView>

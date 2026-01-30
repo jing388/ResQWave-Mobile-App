@@ -81,6 +81,7 @@ export default function HomeScreen() {
       id: marker.id,
       title: marker.neighborhoodID,
       address: marker.address,
+      type: marker.type,
       latitude: marker.latitude,
       longitude: marker.longitude,
     }));
@@ -371,6 +372,7 @@ export default function HomeScreen() {
               placeholder="Search locations"
               locations={pinnedLocations}
               onLocationSelect={handleLocationSelect}
+              selectedLocationId={activeMarkerId}
               onDropdownOpen={setIsDropdownOpen}
             />
             <Avatar
