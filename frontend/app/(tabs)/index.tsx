@@ -14,7 +14,7 @@ import {
 } from '@/services/neighborhood-persistence';
 import type { LocationObject } from 'expo-location';
 import * as Location from 'expo-location';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -38,6 +38,9 @@ const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO;
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
+  const params = useLocalSearchParams();
+  const freshLogin = params.freshLogin === 'true';
+  const hasAnimatedRef = useRef(false);
 
   // Hoisted helper to safely animate map even if ref isn't ready yet
   function animateToRegionSafe(r: Region, duration = 500) {
@@ -144,10 +147,43 @@ export default function HomeScreen() {
     })();
   }, [ownNeighborhood]);
 
-  // Load and focus on last selected neighborhood
+  // Zoom to own neighborhood on fresh login
+  useEffect(() => {
+    if (freshLogin && ownNeighborhood && !hasAnimatedRef.current) {
+      hasAnimatedRef.current = true;
+      
+      // Start from a wider view, then zoom in to own neighborhood
+      const zoomInSequence = async () => {
+        // Small delay to ensure map is ready
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Animate to own neighborhood with zoom effect
+        mapRef.current?.animateToRegion(
+          {
+            latitude: ownNeighborhood.latitude,
+            longitude: ownNeighborhood.longitude,
+            latitudeDelta: LATITUDE_DELTA,
+            longitudeDelta: LONGITUDE_DELTA,
+          },
+          1500 // 1.5 second animation
+        );
+        
+        // Set active marker and open bottom sheet after animation
+        setTimeout(() => {
+          setActiveMarkerId(ownNeighborhood.id);
+          setSelectedMarker(ownNeighborhood);
+          setSheetVisible(true);
+        }, 1500);
+      };
+      
+      zoomInSequence();
+    }
+  }, [freshLogin, ownNeighborhood]);
+
+  // Load and focus on last selected neighborhood (only if not fresh login)
   useEffect(() => {
     const loadLastSelectedNeighborhood = async () => {
-      if (markers.length > 0) {
+      if (markers.length > 0 && !freshLogin) {
         const lastSelectedId = await getLastSelectedNeighborhood();
         if (lastSelectedId) {
           const lastSelectedMarker = markers.find(marker => marker.id === lastSelectedId);
@@ -173,7 +209,7 @@ export default function HomeScreen() {
     };
 
     loadLastSelectedNeighborhood();
-  }, [markers]);
+  }, [markers, freshLogin]);
 
   const handleCenterOnUser = useCallback(() => {
     if (location) {

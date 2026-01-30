@@ -14,7 +14,7 @@ import '../global.css';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { setGlobalLogoutCallback } from '@/lib/api-client';
-import { WithSplashScreen } from '@/components/splash-screen';
+import { WithSplashScreen } from '@/components/ui/splash-screen';
 
 // Load Geist fonts
 import {

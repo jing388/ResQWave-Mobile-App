@@ -17,6 +17,7 @@ export interface BackendOwnNeighborhood {
 
 export interface BackendOtherNeighborhood {
   neighborhoodID: string;
+  terminalID: string | null;
   hazards: string[];
   createdDate: string | null;
   address: string | null; // JSON string with lat/lng
