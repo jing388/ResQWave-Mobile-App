@@ -39,6 +39,20 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
 
+  // Hoisted helper to safely animate map even if ref isn't ready yet
+  function animateToRegionSafe(r: Region, duration = 500) {
+    if (mapRef.current) {
+      mapRef.current.animateToRegion(r, duration);
+      return;
+    }
+    const t = setTimeout(() => {
+      if (mapRef.current) {
+        mapRef.current.animateToRegion(r, duration);
+      }
+      clearTimeout(t);
+    }, 250);
+  }
+
   // Fetch neighborhoods from backend
   const { markers, ownNeighborhood, isLoading } = useNeighborhoods();
 
@@ -105,9 +119,22 @@ export default function HomeScreen() {
           latitudeDelta: LATITUDE_DELTA,
           longitudeDelta: LONGITUDE_DELTA,
         });
+        // Ensure map centers on the user's assigned (own) neighborhood
+        animateToRegionSafe({
+          latitude: ownNeighborhood.latitude,
+          longitude: ownNeighborhood.longitude,
+          latitudeDelta: LATITUDE_DELTA,
+          longitudeDelta: LONGITUDE_DELTA,
+        });
       } else {
         // Otherwise center on user location
         setRegion({
+          latitude: currentLocation.coords.latitude,
+          longitude: currentLocation.coords.longitude,
+          latitudeDelta: LATITUDE_DELTA,
+          longitudeDelta: LONGITUDE_DELTA,
+        });
+        animateToRegionSafe({
           latitude: currentLocation.coords.latitude,
           longitude: currentLocation.coords.longitude,
           latitudeDelta: LATITUDE_DELTA,
@@ -133,6 +160,13 @@ export default function HomeScreen() {
               longitudeDelta: LONGITUDE_DELTA,
             });
             setActiveMarkerId(lastSelectedId);
+            // Animate the map to the persisted last-selected neighborhood
+            animateToRegionSafe({
+              latitude: lastSelectedMarker.latitude,
+              longitude: lastSelectedMarker.longitude,
+              latitudeDelta: LATITUDE_DELTA,
+              longitudeDelta: LONGITUDE_DELTA,
+            });
           }
         }
       }
