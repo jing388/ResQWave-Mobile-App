@@ -21,9 +21,14 @@ export default function WelcomeScreen() {
       if (isAuthenticated) {
         // User is logged in, redirect to main app
         router.replace('/(tabs)');
+      } else {
+        // User is not logged in, redirect to login
+        router.replace('/login');
       }
     } catch (error) {
       console.log('Auth check error:', error);
+      // On error, redirect to login
+      router.replace('/login');
     } finally {
       setIsChecking(false);
     }
@@ -37,10 +42,6 @@ export default function WelcomeScreen() {
         end={{ x: 0.8, y: 0.8 }}
         className="flex-1 items-center justify-center"
       >
-        <ActivityIndicator size="large" color="#3B82F6" />
-        <Text className="text-text-primary mt-4 font-geist-medium">
-          Checking authentication...
-        </Text>
       </LinearGradient>
     );
   }

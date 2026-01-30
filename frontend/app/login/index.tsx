@@ -10,7 +10,6 @@ import { StatusBar } from 'expo-status-bar';
 import { Lock, Mail } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-  Alert,
   Image,
   Keyboard,
   KeyboardAvoidingView,
@@ -88,7 +87,8 @@ export default function LoginScreen() {
         },
       });
     } catch (err: any) {
-      Alert.alert('Login Failed', err.message || 'Please try again');
+      console.error('Login Failed:', err.message || 'Please try again');
+      // Error is already displayed in the UI via the {error} state from useAuth
     }
   };
 
@@ -119,12 +119,6 @@ export default function LoginScreen() {
             onPress={handleBack}
             disabled={isLoading}
           >
-            <Image
-              source={require('@/assets/images/left-arrow.png')}
-              className="w-6 h-6"
-              style={{ tintColor: colors.icon.primary }}
-              resizeMode="contain"
-            />
           </TouchableOpacity>
           <View className="w-10" />
         </View>
@@ -147,7 +141,7 @@ export default function LoginScreen() {
                     className="w-14 h-14"
                   />
                 </View>
-                <Text className="text-text-primary text-4xl font-geist-semibold mb-4 text-center">
+                <Text className="text-text-primary text-4xl font-geist-semibold = text-center">
                   Log in to ResQWave
                 </Text>
               </View>
@@ -162,7 +156,7 @@ export default function LoginScreen() {
               )}
 
               {/* Form */}
-              <View className="gap-6 mb-8">
+              <View className="gap-6">
                 <CustomInput
                   value={identifier}
                   onChangeText={(text) => {
