@@ -127,7 +127,7 @@ export const fetchOtherNeighborhoods = async (): Promise<MarkerData[]> => {
         latitude: addressData.latitude,
         longitude: addressData.longitude,
         neighborhoodID: nb.neighborhoodID,
-        terminalID: '',
+        terminalID: nb.terminalID || '',
         address: addressData.address,
         dateRegistered: nb.createdDate || '',
         type: 'other',

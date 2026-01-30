@@ -74,8 +74,11 @@ export default function VerificationScreen() {
             },
           });
         } else {
-          // Go directly to main app
-          router.replace('/(tabs)');
+          // Go directly to main app with fresh login flag
+          router.replace({
+            pathname: '/(tabs)',
+            params: { freshLogin: 'true' },
+          });
         }
       }, 1000);
     } catch (error: any) {
