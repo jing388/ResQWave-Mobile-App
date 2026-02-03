@@ -26,11 +26,12 @@ export const AnimatedHeader = ({
   onCancelEdit,
   onSubmitEdit,
 }: AnimatedHeaderProps) => {
-  // Sticky header background/border style (only shows when scrolled)
+  // Sticky header background/border style (only shows when scrolled past blue card)
+  // The blue card + title section is approximately 200px, so start showing after that
   const stickyHeaderStyle = useAnimatedStyle(() => {
     const opacity = interpolate(
       scrollY.value,
-      [0, 80],
+      [180, 220], // Start appearing at 180px, fully visible at 220px
       [0, 1],
       Extrapolation.CLAMP
     );
@@ -48,12 +49,19 @@ export const AnimatedHeader = ({
   const collapsedOpacity = useAnimatedStyle(() => {
     const opacity = interpolate(
       scrollY.value,
-      [0, 50],
+      [180, 220], // Match the sticky header appearance
       [0, 1],
       Extrapolation.CLAMP
     );
 
     return { opacity };
+  });
+
+  // Determine if pointer events should be enabled based on scroll position
+  const pointerEventsStyle = useAnimatedStyle(() => {
+    return {
+      pointerEvents: scrollY.value > 180 ? 'auto' : 'none',
+    };
   });
 
   return (
@@ -74,13 +82,13 @@ export const AnimatedHeader = ({
       <Animated.View
         style={[
           collapsedOpacity,
+          pointerEventsStyle,
           {
             paddingHorizontal: 24,
             paddingVertical: 20,
             height: 70,
           },
         ]}
-        pointerEvents={scrollY.value > 25 ? "auto" : "none"}
       >
         <View className="flex-row items-center gap-3">
           <View className="bg-gray-700 rounded-lg p-3">

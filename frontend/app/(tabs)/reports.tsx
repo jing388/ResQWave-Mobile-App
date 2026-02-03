@@ -1,6 +1,7 @@
 import { ReportCardContainer } from '@/components/reports/report-card-container';
 import { Dropdown } from '@/components/ui/dropdown';
 import { PDFViewer } from '@/components/pdf-viewer';
+import { RefreshNotification } from '@/components/ui/refresh-notification';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChevronDown, Search, RefreshCw } from 'lucide-react-native';
 import React, { useState, useEffect } from 'react';
@@ -14,7 +15,6 @@ import {
   View,
   Modal,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import Collapsible from 'react-native-collapsible';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -41,9 +41,14 @@ export default function ReportsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [generatingPDF, setGeneratingPDF] = useState(false);
+  const [refreshRotation] = useState(new Animated.Value(0));
+  const [showNotification, setShowNotification] = useState(false);
+  const [notificationType, setNotificationType] = useState<'success' | 'error'>('success');
+  const [notificationTitle, setNotificationTitle] = useState('');
+  const [notificationMessage, setNotificationMessage] = useState('');
 
   // Fetch reports from API
-  const fetchReports = async (bypassCache = false) => {
+  const fetchReports = async (bypassCache = false): Promise<void> => {
     try {
       setError(null);
       const data = await reportService.getAggregatedReports(undefined, bypassCache);
@@ -51,9 +56,9 @@ export default function ReportsScreen() {
     } catch (err) {
       console.error('Error fetching reports:', err);
       setError('Failed to load reports. Please try again.');
+      throw err; // Re-throw to handle in calling function
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   };
 
@@ -62,10 +67,49 @@ export default function ReportsScreen() {
     fetchReports(true);
   }, []);
 
-  const handleRefresh = () => {
+  const startRefreshAnimation = () => {
+    refreshRotation.setValue(0);
+    Animated.loop(
+      Animated.timing(refreshRotation, {
+        toValue: 1,
+        duration: 1000,
+        useNativeDriver: true,
+      })
+    ).start();
+  };
+
+  const stopRefreshAnimation = () => {
+    refreshRotation.stopAnimation();
+    Animated.timing(refreshRotation, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handleRefresh = async () => {
     setRefreshing(true);
-    // Bypass cache when explicitly refreshing
-    fetchReports(true);
+    startRefreshAnimation();
+    
+    try {
+      // Bypass cache when explicitly refreshing
+      await fetchReports(true);
+      
+      // Success notification
+      setNotificationType('success');
+      setNotificationTitle('Refresh Successful');
+      setNotificationMessage('Reports have been updated with the latest data.');
+      setShowNotification(true);
+    } catch (error) {
+      // Error notification
+      setNotificationType('error');
+      setNotificationTitle('Refresh Failed');
+      setNotificationMessage('Failed to update reports. Please check your connection and try again.');
+      setShowNotification(true);
+    } finally {
+      stopRefreshAnimation();
+      setRefreshing(false);
+    }
   };
 
   const monthOptions = [
@@ -219,11 +263,10 @@ export default function ReportsScreen() {
       setShowPDFViewer(true);
     } catch (error) {
       console.error('Error viewing document:', error);
-      Alert.alert(
-        'Error',
-        'Failed to generate PDF. Please try again.',
-        [{ text: 'OK' }]
-      );
+      setNotificationType('error');
+      setNotificationTitle('PDF Generation Failed');
+      setNotificationMessage('Failed to generate PDF. Please try again.');
+      setShowNotification(true);
     } finally {
       setGeneratingPDF(false);
     }
@@ -275,12 +318,27 @@ export default function ReportsScreen() {
               disabled={refreshing}
               className="bg-gray-800 rounded-full p-3 border border-gray-600"
               activeOpacity={0.7}
+              style={{
+                opacity: refreshing ? 0.7 : 1,
+              }}
             >
-              <RefreshCw 
-                size={20} 
-                color={refreshing ? '#6B7280' : '#3B82F6'} 
-                style={{ transform: [{ rotate: refreshing ? '180deg' : '0deg' }] }}
-              />
+              <Animated.View
+                style={{
+                  transform: [
+                    {
+                      rotate: refreshRotation.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ['0deg', '360deg'],
+                      }),
+                    },
+                  ],
+                }}
+              >
+                <RefreshCw 
+                  size={20} 
+                  color={refreshing ? '#6B7280' : '#3B82F6'} 
+                />
+              </Animated.View>
             </TouchableOpacity>
           </View>
           <Text className="text-gray-400 text-base font-geist-regular">
@@ -340,9 +398,32 @@ export default function ReportsScreen() {
               </Text>
               <TouchableOpacity
                 onPress={handleRefresh}
-                className="bg-primary rounded-xl px-6 py-3"
+                disabled={refreshing}
+                className="bg-primary rounded-xl px-6 py-3 flex-row items-center justify-center"
+                style={{
+                  opacity: refreshing ? 0.7 : 1,
+                }}
               >
-                <Text className="text-white font-geist-semibold">Retry</Text>
+                {refreshing && (
+                  <Animated.View
+                    style={{
+                      marginRight: 8,
+                      transform: [
+                        {
+                          rotate: refreshRotation.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: ['0deg', '360deg'],
+                          }),
+                        },
+                      ],
+                    }}
+                  >
+                    <RefreshCw size={16} color="white" />
+                  </Animated.View>
+                )}
+                <Text className="text-white font-geist-semibold">
+                  {refreshing ? 'Retrying...' : 'Retry'}
+                </Text>
               </TouchableOpacity>
             </View>
           ) : Object.keys(groupedReports).length === 0 ? (
@@ -437,6 +518,15 @@ export default function ReportsScreen() {
           />
         )}
       </Modal>
+
+      {/* Refresh Notification */}
+      <RefreshNotification
+        visible={showNotification}
+        type={notificationType}
+        title={notificationTitle}
+        message={notificationMessage}
+        onDismiss={() => setShowNotification(false)}
+      />
     </SafeAreaView>
   );
 }
