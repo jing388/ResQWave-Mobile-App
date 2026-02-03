@@ -4,6 +4,7 @@ import {
 } from '@/components/neighborhood/animated-header';
 import { NeighborhoodEdit } from '@/components/neighborhood/neighborhood-edit';
 import { NeighborhoodView } from '@/components/neighborhood/neighborhood-view';
+import { RefreshNotification } from '@/components/ui/refresh-notification';
 import { DetailRow } from '@/components/ui/detail-row';
 import { InfoCard } from '@/components/ui/info-card';
 import { Separator } from '@/components/ui/separator';
@@ -32,6 +33,8 @@ export default function AboutNeighborhoodScreen() {
     neighborhoodData,
     editedData,
     dropdownOptions,
+    notification,
+    dismissNotification,
     handleEditPress,
     handleCancelEdit,
     handleSubmitEdit,
@@ -173,6 +176,15 @@ export default function AboutNeighborhoodScreen() {
           </Animated.ScrollView>
         </>
       )}
+
+      {/* Notification */}
+      <RefreshNotification
+        visible={notification.visible}
+        type={notification.type}
+        title={notification.title}
+        message={notification.message}
+        onDismiss={dismissNotification}
+      />
     </SafeAreaView>
   );
 }

@@ -13,12 +13,21 @@ import {
 } from '@/types/neighborhood';
 import { useEffect, useState } from 'react';
 
+export interface NotificationState {
+  visible: boolean;
+  type: 'success' | 'error';
+  message: string;
+  title?: string;
+}
+
 export interface UseNeighborhoodDataReturn {
   isEditMode: boolean;
   isLoading: boolean;
   neighborhoodData: NeighborhoodData | null;
   editedData: EditedData;
   dropdownOptions: typeof dropdownOptions;
+  notification: NotificationState;
+  dismissNotification: () => void;
   handleEditPress: () => void;
   handleCancelEdit: () => void;
   handleSubmitEdit: () => Promise<void>;
@@ -33,6 +42,12 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
   const [isLoading, setIsLoading] = useState(true);
   const [neighborhoodData, setNeighborhoodData] =
     useState<NeighborhoodData | null>(null);
+  const [notification, setNotification] = useState<NotificationState>({
+    visible: false,
+    type: 'success',
+    message: '',
+    title: '',
+  });
 
   // Editable data state
   const [editedData, setEditedData] = useState<EditedData>({
@@ -227,11 +242,29 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
       });
 
       setIsEditMode(false);
-      // TODO: Show success message to user
+      
+      // Show success notification
+      setNotification({
+        visible: true,
+        type: 'success',
+        title: 'Update Successful',
+        message: 'Neighborhood information updated successfully.',
+      });
     } catch (error) {
       console.error('Error updating neighborhood data:', error);
-      // TODO: Show error message to user
+      
+      // Show error notification
+      setNotification({
+        visible: true,
+        type: 'error',
+        title: 'Update Failed',
+        message: 'Failed to update neighborhood information. Please try again.',
+      });
     }
+  };
+
+  const dismissNotification = () => {
+    setNotification((prev) => ({ ...prev, visible: false }));
   };
 
   const handleDropdownChange = (field: string, value: string) => {
@@ -282,6 +315,8 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
     neighborhoodData,
     editedData,
     dropdownOptions,
+    notification,
+    dismissNotification,
     handleEditPress,
     handleCancelEdit,
     handleSubmitEdit,
