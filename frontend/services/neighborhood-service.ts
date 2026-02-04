@@ -89,6 +89,7 @@ export const fetchOwnNeighborhood = async (): Promise<MarkerData | null> => {
       longitude: addressData.longitude,
       neighborhoodID: data.neighborhoodID,
       terminalID: data.terminalID || '',
+      terminalName: data.terminalName || null,
       address: addressData.address,
       dateRegistered: data.createdDate || '',
       type: 'own' as const,
@@ -116,11 +117,18 @@ export const fetchOtherNeighborhoods = async (): Promise<MarkerData[]> => {
       '/neighborhood/map/others',
     );
 
+    console.log('🔍 [fetchOtherNeighborhoods] Total neighborhoods received from API:', data.length);
+
     const markers: MarkerData[] = [];
+    let skippedCount = 0;
 
     for (const nb of data) {
       const addressData = parseAddress(nb.address);
-      if (!addressData) continue;
+      if (!addressData) {
+        console.log(`⚠️ Skipping neighborhood ${nb.neighborhoodID} - no valid coordinates in address:`, nb.address);
+        skippedCount++;
+        continue;
+      }
 
       markers.push({
         id: nb.neighborhoodID,
@@ -128,6 +136,7 @@ export const fetchOtherNeighborhoods = async (): Promise<MarkerData[]> => {
         longitude: addressData.longitude,
         neighborhoodID: nb.neighborhoodID,
         terminalID: nb.terminalID || '',
+        terminalName: nb.terminalName || null,
         address: addressData.address,
         dateRegistered: nb.createdDate || '',
         type: 'other',
@@ -135,6 +144,9 @@ export const fetchOtherNeighborhoods = async (): Promise<MarkerData[]> => {
         hazards: nb.hazards || [],
       });
     }
+
+    console.log('✅ [fetchOtherNeighborhoods] Successfully parsed:', markers.length);
+    console.log('⚠️ [fetchOtherNeighborhoods] Skipped (no coordinates):', skippedCount);
 
     return markers;
   } catch (error) {

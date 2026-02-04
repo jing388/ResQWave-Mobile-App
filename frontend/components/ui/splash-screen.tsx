@@ -17,7 +17,7 @@ interface WithSplashScreenProps {
 export function WithSplashScreen({ isAppReady, children }: WithSplashScreenProps) {
   return (
     <>
-      {children}
+      {isAppReady && children}
       <Splash isAppReady={isAppReady} />
     </>
   );

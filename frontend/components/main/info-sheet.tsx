@@ -1,7 +1,7 @@
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
-import { Pencil, Radio } from 'lucide-react-native';
+import { Radio } from 'lucide-react-native';
 import React, { useCallback, useMemo, useRef } from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { MarkerData } from '@/types/neighborhood';
 import { formatDate } from '@/utils/formatters';
 import {colors} from "@/constants/colors";
@@ -118,16 +118,16 @@ export function InfoSheet({
 
           {/* Content */}
           <View className="gap-2 mb-2">
-            {/* Title - Neighborhood ID with Icon */}
+            {/* Title - Terminal Name with Icon */}
             <View className="flex-row items-start gap-3 mb-4">
               <View className="bg-gray-700 rounded-lg p-3">
                 <Radio size={22} color={colors.brand.primary} />
               </View>
               <View className="flex-1">
                 <Text className="text-white text-2xl font-geist-semibold">
-                  {markerData.neighborhoodID}
+                  {markerData.terminalName || markerData.terminalID || 'Unknown Terminal'}
                 </Text>
-                {/* Coordinates moved below neighborhood ID */}
+                {/* Coordinates moved below terminal name */}
                 <Text className="text-gray-400 text-sm font-geist-regular mt-1">
                   {markerData.latitude}, {markerData.longitude}
                 </Text>
@@ -135,10 +135,10 @@ export function InfoSheet({
 
             </View>
 
-            {/* Terminal ID */}
+            {/* Neighborhood ID */}
             <DetailRow
-              label="Terminal ID"
-              value={markerData.terminalID || 'Not assigned'}
+              label="Neighborhood ID"
+              value={markerData.neighborhoodID || 'Not assigned'}
             />
 
             {/* Address */}

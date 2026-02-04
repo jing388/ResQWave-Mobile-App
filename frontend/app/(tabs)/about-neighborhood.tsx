@@ -43,6 +43,7 @@ export default function AboutNeighborhoodScreen() {
     handleHazardToggle,
     handleNotableInfoChange,
     handleAlternativeFocalChange,
+    isSubmitting,
   } = useNeighborhoodData(null); // Always fetch own neighborhood
 
   // Reanimated values for header
@@ -114,7 +115,7 @@ export default function AboutNeighborhoodScreen() {
             No Neighborhood Assigned
           </Text>
           <Text className="text-text-muted text-base font-geist-regular text-center mb-4">
-            You don't have a neighborhood assigned to your account yet.
+            You do not have a neighborhood assigned to your account yet.
           </Text>
           <Text className="text-text-secondary text-sm font-geist-regular text-center mb-4">
             Tap your neighborhood marker on the Map tab and use the green button to view details.
@@ -153,8 +154,7 @@ export default function AboutNeighborhoodScreen() {
             {!isEditMode && (
               <View className="px-5 py-7 pb-5">
                 <TouchableOpacity
-                  style={{ backgroundColor: '#3B82F6' }}
-                  className="rounded-lg py-4.5 flex-row items-center justify-center gap-2"
+                  className="bg-blue-500 rounded-lg py-4 px-4 flex-row items-center justify-center gap-2 h-12"
                   onPress={handleEditPress}
                   activeOpacity={0.8}
                 >
@@ -173,6 +173,8 @@ export default function AboutNeighborhoodScreen() {
                   className="flex-1 bg-gray-600 rounded-lg py-4"
                   onPress={handleCancelEdit}
                   activeOpacity={0.8}
+                  disabled={isSubmitting}
+                  style={{ opacity: isSubmitting ? 0.6 : 1 }}
                 >
                   <Text className="text-white text-base font-geist-semibold text-center">
                     Cancel
@@ -182,10 +184,21 @@ export default function AboutNeighborhoodScreen() {
                   className="flex-1 bg-green-500 rounded-lg py-4"
                   onPress={handleSubmitEdit}
                   activeOpacity={0.8}
+                  disabled={isSubmitting}
+                  style={{ opacity: isSubmitting ? 0.9 : 1 }}
                 >
-                  <Text className="text-white text-base font-geist-semibold text-center">
-                    Save Changes
-                  </Text>
+                  {isSubmitting ? (
+                    <View className="flex-row items-center justify-center gap-2">
+                      <ActivityIndicator size="small" color="#fff" />
+                      <Text className="text-white text-base font-geist-semibold">
+                        Saving...
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text className="text-white text-base font-geist-semibold text-center">
+                      Save Changes
+                    </Text>
+                  )}
                 </TouchableOpacity>
               </View>
             )}

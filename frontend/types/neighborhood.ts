@@ -2,6 +2,7 @@
 export interface BackendOwnNeighborhood {
   neighborhoodID: string;
   terminalID: string;
+  terminalName: string | null;
   focalPerson: {
     name: string | null;
     alternativeFPFirstName: string | null;
@@ -18,6 +19,7 @@ export interface BackendOwnNeighborhood {
 export interface BackendOtherNeighborhood {
   neighborhoodID: string;
   terminalID: string | null;
+  terminalName: string | null;
   hazards: string[];
   createdDate: string | null;
   address: string | null; // JSON string with lat/lng
@@ -83,6 +85,7 @@ export interface MarkerData {
   longitude: number;
   neighborhoodID: string;
   terminalID: string;
+  terminalName: string | null;
   address: string;
   dateRegistered: string;
   type: 'own' | 'other';

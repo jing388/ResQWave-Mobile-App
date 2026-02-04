@@ -1,4 +1,5 @@
 import { InfoSheet } from '@/components/main/info-sheet';
+import { CurrentLocationSheet } from '@/components/main/current-location-sheet';
 import { LayersButton } from '@/components/main/layers-button';
 import MapStyleSheet, { MapStyle } from '@/components/main/map-style-sheet';
 import { ChatbotButton } from '@/components/main/chatbot-button';
@@ -69,6 +70,7 @@ export default function HomeScreen() {
   const [selectedMarker, setSelectedMarker] = useState<MarkerData | null>(null);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [activeMarkerId, setActiveMarkerId] = useState<string | null>(null);
+  const [currentLocationSheetVisible, setCurrentLocationSheetVisible] = useState(false);
   const [currentMapStyle, setCurrentMapStyle] = useState<MapStyle>({
     id: 'default',
     name: 'Default',
@@ -77,6 +79,8 @@ export default function HomeScreen() {
   });
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const mapStyleSheetRef = useRef<BottomSheetModal | null>(null);
+
+  // (native user location marker used; custom marker rendering removed)
 
   // Pinned locations for search (derived from markers) - memoized to prevent infinite loop
   const pinnedLocations = useMemo(() => {
@@ -249,6 +253,18 @@ export default function HomeScreen() {
     setActiveMarkerId(null);
   }, []);
 
+  const handleCurrentLocationPress = useCallback(() => {
+    console.log('📍 Current location marker pressed');
+    // Close neighborhood sheet if open
+    hideBottomSheet();
+    // Open current location sheet
+    setCurrentLocationSheetVisible(true);
+  }, [hideBottomSheet]);
+
+  const hideCurrentLocationSheet = useCallback(() => {
+    setCurrentLocationSheetVisible(false);
+  }, []);
+
   const handleMoreInfo = useCallback(async (markerData: MarkerData) => {
     console.log('🔍 [index] ========================================');
     console.log('🔍 [index] More info requested for:', markerData.neighborhoodID);
@@ -313,7 +329,7 @@ export default function HomeScreen() {
           ref={mapRef}
           style={styles.map}
           initialRegion={region}
-          showsUserLocation={true}
+          showsUserLocation={false}
           showsMyLocationButton={false}
           mapType={currentMapStyle.id === 'satellite' ? 'satellite' : 'standard'}
           scrollEnabled={!isDropdownOpen}
@@ -329,6 +345,39 @@ export default function HomeScreen() {
               flipY={false}
               zIndex={-1}
             />
+          )}
+
+          {/* Native current location marker with radius + invisible tap target */}
+          {location && (
+            <>
+              {/* Smaller outer radius */}
+              <Circle
+                center={{ latitude: location.coords.latitude, longitude: location.coords.longitude }}
+                radius={45}
+                fillColor="rgba(59,130,246,0.12)"
+                strokeColor="rgba(59,130,246,0.28)"
+                strokeWidth={2}
+                zIndex={0}
+              />
+
+              {/* Inner solid core rendered as a Circle overlay to control size without custom Marker view */}
+              <Circle
+                center={{ latitude: location.coords.latitude, longitude: location.coords.longitude }}
+                radius={10}
+                fillColor="#3B82F6"
+                strokeColor="#ffffff"
+                strokeWidth={3}
+                zIndex={2}
+              />
+
+              {/* Invisible marker only for receiving taps */}
+              <Marker
+                coordinate={{ latitude: location.coords.latitude, longitude: location.coords.longitude }}
+                onPress={handleCurrentLocationPress}
+                opacity={0}
+                anchor={{ x: 0.5, y: 0.5 }}
+              />
+            </>
           )}
           
           {/* Dynamically render all markers and their circles */}
@@ -439,6 +488,14 @@ export default function HomeScreen() {
           markerData={selectedMarker}
           onClose={hideBottomSheet}
           onMoreInfo={handleMoreInfo}
+        />
+
+        {/* Current Location Sheet */}
+        <CurrentLocationSheet
+          visible={currentLocationSheetVisible}
+          latitude={location?.coords.latitude ?? null}
+          longitude={location?.coords.longitude ?? null}
+          onClose={hideCurrentLocationSheet}
         />
 
         {/* Map Style Bottom Sheet */}
