@@ -28,54 +28,47 @@ export const NeighborhoodView: React.FC<NeighborhoodViewProps> = ({
   return (
     <>
       {/* Neighborhood Information - Consolidated Section */}
-      <View className="px-6">
-        <InfoCard title="NEIGHBORHOOD INFORMATION">
-          <View className="gap-4 mt-4">
+      <View className="px-6" style={{ backgroundColor: '#171717' }}>
+        <View className="rounded-xl p-6 mb-4" style={{ backgroundColor: '#1D1D1D' }}>
+          <View className="gap-4">
             {/* Neighborhood ID */}
             <DetailRow label="Neighborhood ID" value={neighborhoodData.id} />
-            <Separator />
 
             {/* Registered At */}
             <DetailRow
               label="Registered At"
               value={formatDate(neighborhoodData.registeredAt)}
             />
-            <Separator />
 
             {/* Terminal ID */}
             <DetailRow
               label="Terminal ID"
               value={neighborhoodData.terminalID}
             />
-            <Separator />
 
             {/* Terminal Address */}
             <DetailRow
               label="Terminal Address"
               value={neighborhoodData.terminalAddress}
             />
-            <Separator />
 
             {/* Coordinates */}
             <DetailRow
               label="Coordinates"
               value={`${neighborhoodData.coordinates.latitude}, ${neighborhoodData.coordinates.longitude}`}
             />
-            <Separator />
 
             {/* Approx. Residents */}
             <DetailRow
               label="Approximate Number of Residents"
-              value={neighborhoodData.approxResidents.toLocaleString()}
+              value={neighborhoodData.approxResidents || 'Not specified'}
             />
-            <Separator />
 
-            {/* Avg. Household Size */}
+            {/* Approx. Households */}
             <DetailRow
-              label="Approximate Number of Household"
-              value={`${neighborhoodData.avgHouseholdSize} members`}
+              label="Approximate Number of Households"
+              value={neighborhoodData.approxHouseholds || 'Not specified'}
             />
-            <Separator />
 
             {/* Floodwater Subsidence */}
             <DetailRow
@@ -86,7 +79,7 @@ export const NeighborhoodView: React.FC<NeighborhoodViewProps> = ({
 
           {/* Flood-Related Hazards */}
           <View className="mt-6">
-            <Text className="text-text-muted text-sm font-geist-medium spacing-10 tracking-wide mb-3">
+            <Text className="text-gray-400 text-xs font-geist-medium tracking-widest uppercase mb-3">
               FLOOD-RELATED HAZARDS
             </Text>
             {neighborhoodData.floodRelatedHazards.map(
@@ -104,8 +97,8 @@ export const NeighborhoodView: React.FC<NeighborhoodViewProps> = ({
           </View>
 
           {/* Other Notable Information */}
-          <View className="mt-4">
-            <Text className="text-text-muted text-sm font-geist-medium spacing-10 tracking-wide mb-3">
+          <View className="mt-6">
+            <Text className="text-gray-400 text-xs font-geist-medium tracking-widest uppercase mb-3">
               OTHER NOTABLE INFORMATION
             </Text>
             {neighborhoodData.notableInfo.map((info: string, index: number) => (
@@ -119,43 +112,38 @@ export const NeighborhoodView: React.FC<NeighborhoodViewProps> = ({
               </View>
             ))}
           </View>
-        </InfoCard>
+        </View>
       </View>
 
       {/* Focal Person Information */}
-      <View className="px-6 mb-2">
+      <View className="px-6 pb-6" style={{ backgroundColor: '#171717' }}>
         <InfoCard title="FOCAL PERSON">
-          <View className="gap-4 mt-4">
+          <View className="gap-4">
             <DetailRow
               label="Focal Person"
               value={neighborhoodData.focalPerson.name}
               showAvatar={true}
             />
-            <Separator />
             <DetailRow
               label="Contact No."
               value={neighborhoodData.focalPerson.contactNo}
             />
-            <Separator />
             <DetailRow
               label="Email"
               value={neighborhoodData.focalPerson.email}
             />
-            <Separator />
             <DetailRow
               label="Alternative Focal Person"
-              value={neighborhoodData.alternativeFocalPerson.name}
-              showAvatar={true}
+              value={neighborhoodData.alternativeFocalPerson.name || 'Not specified'}
+              showAvatar={!!neighborhoodData.alternativeFocalPerson.name}
             />
-            <Separator />
             <DetailRow
               label="Contact No."
-              value={neighborhoodData.alternativeFocalPerson.contactNo}
+              value={neighborhoodData.alternativeFocalPerson.contactNo || 'Not specified'}
             />
-            <Separator />
             <DetailRow
               label="Email"
-              value={neighborhoodData.alternativeFocalPerson.email}
+              value={neighborhoodData.alternativeFocalPerson.email || 'Not specified'}
             />
           </View>
         </InfoCard>

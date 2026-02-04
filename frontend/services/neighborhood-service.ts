@@ -212,8 +212,8 @@ export const fetchNeighborhoodDetails = async (
     
     if (isOwnEndpoint) {
       // /neighborhood/own endpoint response structure (viewAboutYourNeighborhood)
-      households = parseInt(data.noOfHouseholds) || 0;
-      residents = parseInt(data.noOfResidents) || 0;
+      households = data.noOfHouseholds || '';
+      residents = data.noOfResidents || '';
       floodwaterSubsidence = data.floodwaterSubsidenceDuration || '';
       hazards = data.hazards || [];
       otherInfo = data.otherInformation || null;
@@ -235,8 +235,8 @@ export const fetchNeighborhoodDetails = async (
       };
     } else {
       // /neighborhood/:id endpoint response structure (getNeighborhood)
-      households = parseInt(data.noOfHouseholds) || 0;
-      residents = parseInt(data.noOfResidents) || 0;
+      households = data.noOfHouseholds || '';
+      residents = data.noOfResidents || '';
       floodwaterSubsidence = data.floodSubsideHours || '';
       hazards = data.hazards || [];
       otherInfo = data.otherInformation || null;
@@ -258,8 +258,15 @@ export const fetchNeighborhoodDetails = async (
       };
     }
     
-    // Calculate average household size
-    const avgSize = households > 0 ? parseFloat((residents / households).toFixed(2)) : 0;
+    // Calculate average household size from string ranges
+    let avgSize = 0;
+    if (typeof households === 'string' && households && residents) {
+      // Extract average from range (e.g., "5-10" -> average is 7.5)
+      const parts = households.split('-').map(p => parseInt(p.trim()));
+      if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+        avgSize = parseFloat(((parts[0] + parts[1]) / 2).toFixed(2));
+      }
+    }
 
     return {
       id: neighborhoodIdValue,
@@ -324,6 +331,12 @@ export interface UpdateNeighborhoodDataParams {
   floodwaterSubsidence: string;
   floodRelatedHazards: string[];
   notableInfo: string[];
+  alternativeFocalPerson?: {
+    firstName: string;
+    lastName: string;
+    contactNo: string;
+    email: string;
+  };
 }
 
 /**
@@ -335,16 +348,38 @@ export const updateNeighborhoodData = async (
   try {
     console.log('📝 [neighborhood-service] Updating neighborhood:', params.neighborhoodId);
     console.log('📝 [neighborhood-service] Update data:', params);
+    console.log('📝 [neighborhood-service] approxHouseholds type:', typeof params.approxHouseholds, 'value:', params.approxHouseholds);
+    console.log('📝 [neighborhood-service] approxResidents type:', typeof params.approxResidents, 'value:', params.approxResidents);
+
+    const requestBody: any = {
+      noOfHouseholds: params.approxHouseholds,
+      noOfResidents: params.approxResidents,
+      floodSubsideHours: params.floodwaterSubsidence,
+      hazards: params.floodRelatedHazards,
+      otherInformation: params.notableInfo.join('; '),
+    };
+
+    // Include alternative focal person fields if all required fields are provided and non-empty
+    if (params.alternativeFocalPerson) {
+      const { firstName, lastName, contactNo, email } = params.alternativeFocalPerson;
+      
+      // Only include if all fields are filled (backend requires all or none)
+      if (firstName && lastName && contactNo && email) {
+        requestBody.altFirstName = firstName.trim();
+        requestBody.altLastName = lastName.trim();
+        requestBody.altContactNumber = contactNo.trim();
+        requestBody.altEmail = email.trim();
+        console.log('📝 [neighborhood-service] Including alternative focal person data');
+      } else {
+        console.log('⚠️ [neighborhood-service] Skipping alternative focal person - incomplete data');
+      }
+    }
+
+    console.log('📝 [neighborhood-service] Request body to be sent:', requestBody);
 
     await apiFetch(`/neighborhood/${params.neighborhoodId}`, {
       method: 'PUT',
-      body: JSON.stringify({
-        noOfHouseholds: params.approxHouseholds,
-        noOfResidents: params.approxResidents,
-        floodSubsideHours: params.floodwaterSubsidence,
-        hazards: params.floodRelatedHazards,
-        otherInformation: params.notableInfo.join('; '),
-      }),
+      body: JSON.stringify(requestBody),
     });
     
     console.log('✅ [neighborhood-service] Successfully updated neighborhood:', params.neighborhoodId);

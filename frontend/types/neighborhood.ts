@@ -105,8 +105,8 @@ export interface NeighborhoodData {
     latitude: number;
     longitude: number;
   };
-  approxHouseholds: number;
-  approxResidents: number;
+  approxHouseholds: string;
+  approxResidents: string;
   avgHouseholdSize: number;
   floodwaterSubsidence: string;
   floodRelatedHazards: string[];

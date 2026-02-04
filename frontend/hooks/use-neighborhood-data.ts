@@ -211,12 +211,8 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
       // Prepare data for API
       const updatedDataParams = {
         neighborhoodId: neighborhoodData.id,
-        approxHouseholds: typeof editedData.approxHouseholds === 'string' 
-          ? parseInt(editedData.approxHouseholds) || 0
-          : editedData.approxHouseholds,
-        approxResidents: typeof editedData.approxResidents === 'string' 
-          ? parseInt(editedData.approxResidents) || 0
-          : editedData.approxResidents,
+        approxHouseholds: editedData.approxHouseholds,
+        approxResidents: editedData.approxResidents,
         avgHouseholdSize: editedData.avgHouseholdSize,
         floodwaterSubsidence: editedData.floodwaterSubsidence,
         floodRelatedHazards: editedData.floodRelatedHazards
@@ -225,24 +221,35 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
         notableInfo: editedData.notableInfo
           .split('\n')
           .filter((line) => line.trim() !== ''),
+        alternativeFocalPerson: editedData.alternativeFocalPerson,
       };
 
       await updateNeighborhoodData(updatedDataParams);
+
+      // Prepare alternative focal person name for local state
+      const alternativeFocalPersonName = [
+        editedData.alternativeFocalPerson.firstName,
+        editedData.alternativeFocalPerson.lastName,
+      ]
+        .filter(Boolean)
+        .join(' ');
 
       // Update local state with new data
       const now = new Date().toISOString();
       setNeighborhoodData({
         ...neighborhoodData,
-        approxHouseholds: typeof updatedDataParams.approxHouseholds === 'number' 
-          ? updatedDataParams.approxHouseholds
-          : parseInt(updatedDataParams.approxHouseholds) || 0,
-        approxResidents: typeof updatedDataParams.approxResidents === 'number'
-          ? updatedDataParams.approxResidents
-          : parseInt(updatedDataParams.approxResidents) || 0,
+        approxHouseholds: updatedDataParams.approxHouseholds,
+        approxResidents: updatedDataParams.approxResidents,
         avgHouseholdSize: updatedDataParams.avgHouseholdSize,
         floodwaterSubsidence: updatedDataParams.floodwaterSubsidence,
         floodRelatedHazards: updatedDataParams.floodRelatedHazards,
         notableInfo: updatedDataParams.notableInfo,
+        alternativeFocalPerson: {
+          name: alternativeFocalPersonName,
+          contactNo: editedData.alternativeFocalPerson.contactNo,
+          email: editedData.alternativeFocalPerson.email,
+          avatar: neighborhoodData.alternativeFocalPerson.avatar, // Preserve existing avatar
+        },
         lastUpdatedAt: now,
       });
 
@@ -275,18 +282,23 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
   };
 
   const handleDropdownChange = (field: string, value: string) => {
+    console.log('🔄 [handleDropdownChange] field:', field, 'value:', value, 'type:', typeof value);
+    
+    const processedValue = field === 'approxHouseholds' || field === 'approxResidents'
+      ? value.includes('(custom)') 
+        ? value // Keep custom values as-is
+        : value.includes('-') 
+          ? value // Keep range values as strings
+          : parseInt(value) // Convert individual numbers
+      : field === 'avgHouseholdSize'
+        ? parseFloat(value)
+        : value;
+    
+    console.log('🔄 [handleDropdownChange] processedValue:', processedValue, 'type:', typeof processedValue);
+    
     setEditedData((prev) => ({
       ...prev,
-      [field]:
-        field === 'approxHouseholds' || field === 'approxResidents'
-          ? value.includes('(custom)') 
-            ? value // Keep custom values as-is
-            : value.includes('-') 
-              ? value // Keep range values as strings
-              : parseInt(value) // Convert individual numbers
-          : field === 'avgHouseholdSize'
-            ? parseFloat(value)
-            : value,
+      [field]: processedValue,
     }));
   };
 
