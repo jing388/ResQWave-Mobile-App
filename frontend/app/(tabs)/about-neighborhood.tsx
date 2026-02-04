@@ -42,6 +42,7 @@ export default function AboutNeighborhoodScreen() {
     handleHazardToggle,
     handleNotableInfoChange,
     handleAlternativeFocalChange,
+    isSubmitting,
   } = useNeighborhoodData(null); // Always fetch own neighborhood
 
   // Reanimated values for header
@@ -113,7 +114,7 @@ export default function AboutNeighborhoodScreen() {
             No Neighborhood Assigned
           </Text>
           <Text className="text-text-muted text-base font-geist-regular text-center mb-4">
-            You don't have a neighborhood assigned to your account yet.
+            You do not have a neighborhood assigned to your account yet.
           </Text>
           <Text className="text-text-secondary text-sm font-geist-regular text-center mb-4">
             Tap your neighborhood marker on the Map tab and use the green button to view details.

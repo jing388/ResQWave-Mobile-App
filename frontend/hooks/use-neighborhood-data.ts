@@ -23,6 +23,7 @@ export interface NotificationState {
 export interface UseNeighborhoodDataReturn {
   isEditMode: boolean;
   isLoading: boolean;
+  isSubmitting: boolean;
   neighborhoodData: NeighborhoodData | null;
   editedData: EditedData;
   dropdownOptions: typeof dropdownOptions;
@@ -40,6 +41,7 @@ export interface UseNeighborhoodDataReturn {
 export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighborhoodDataReturn => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [neighborhoodData, setNeighborhoodData] =
     useState<NeighborhoodData | null>(null);
   const [notification, setNotification] = useState<NotificationState>({
@@ -200,6 +202,9 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
   };
 
   const handleSubmitEdit = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
     try {
       if (!neighborhoodData) return;
 
@@ -260,8 +265,10 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
         title: 'Update Failed',
         message: 'Failed to update neighborhood information. Please try again.',
       });
+    } finally {
+      setIsSubmitting(false);
     }
-  };
+  }; 
 
   const dismissNotification = () => {
     setNotification((prev) => ({ ...prev, visible: false }));
@@ -312,6 +319,7 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
   return {
     isEditMode,
     isLoading,
+    isSubmitting,
     neighborhoodData,
     editedData,
     dropdownOptions,
@@ -324,5 +332,5 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
     handleHazardToggle,
     handleNotableInfoChange,
     handleAlternativeFocalChange,
-  };
+  }; 
 };

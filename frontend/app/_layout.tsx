@@ -34,7 +34,7 @@ export default function RootLayout() {
   const router = useRouter();
   const [isAppReady, setIsAppReady] = useState(false);
 
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     'geist-thin': Geist_100Thin,
     'geist-extralight': Geist_200ExtraLight,
     'geist-light': Geist_300Light,
@@ -54,20 +54,32 @@ export default function RootLayout() {
     });
   }, [router]);
 
-  // Initialize app
+  // Track minimum loading time (3 seconds)
+  const [minTimeElapsed, setMinTimeElapsed] = useState(false);
+
   useEffect(() => {
-    const initialize = async () => {
-      // Wait for fonts to load - THIS IS CRITICAL
-      if (!fontsLoaded) return;
+    const timer = setTimeout(() => {
+      setMinTimeElapsed(true);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, []);
 
-      // Small delay to ensure everything is ready
-      await new Promise(resolve => setTimeout(resolve, 2500));
+  // Initialize app - wait for BOTH fonts AND minimum time
+  useEffect(() => {
+    if (fontError) {
+      console.error('❌ Font loading error:', fontError);
+      // Still need to wait for minimum time even if fonts fail
+      if (minTimeElapsed) {
+        setIsAppReady(true);
+      }
+      return;
+    }
 
+    if (fontsLoaded && minTimeElapsed) {
+      console.log('✅ Fonts loaded and minimum time elapsed');
       setIsAppReady(true);
-    };
-
-    initialize();
-  }, [fontsLoaded]); // fontsLoaded in dependency array
+    }
+  }, [fontsLoaded, fontError, minTimeElapsed])
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
