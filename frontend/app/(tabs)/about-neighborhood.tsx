@@ -14,13 +14,12 @@ import { formatDate } from '@/utils/formatters';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React from 'react';
-import { ActivityIndicator, StatusBar, Text, View, Image, TouchableOpacity, ScrollView } from 'react-native';
+import { ActivityIndicator, StatusBar, Text, View } from 'react-native';
 import Animated, {
   useAnimatedScrollHandler,
   useSharedValue,
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Radio, Edit2 } from 'lucide-react-native';
 
 export default function AboutNeighborhoodScreen() {
   // For data privacy compliance, this page ONLY shows the user's OWN neighborhood
@@ -121,82 +120,61 @@ export default function AboutNeighborhoodScreen() {
           </Text>
         </View>
       ) : (
-        <ScrollView 
-          className="flex-1" 
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Header Image */}
-          <View className="w-full">
-            <Image
-              source={require('@/assets/images/about-neigh-header-pic.png')}
-              className="w-full h-32"
-              resizeMode="cover"
+        <>
+          {/* Animated Sticky Header */}
+          {neighborhoodData && (
+            <AnimatedHeader
+              scrollY={scrollY}
+              neighborhoodData={neighborhoodData}
+              isEditMode={isEditMode}
+              onEditPress={handleEditPress}
+              onCancelEdit={handleCancelEdit}
+              onSubmitEdit={handleSubmitEdit}
             />
-          </View>
+          )}
 
-          {/* Main Content Container */}
-          <View style={{ backgroundColor: '#171717' }} className="flex-1">
-            {/* Neighborhood Title Section */}
-            <View className="px-5 pt-5 pb-1">
-              <View className="flex-row items-center gap-2 mb-2">
-                <Radio size={18} color="#60A5FA" />
-                <Text className="text-white text-xl font-geist-bold">
-                  {neighborhoodData.name}
-                </Text>
-              </View>
-              <Text className="text-gray-400 text-xs font-geist-regular mb-4">
-                Last Updated: {formatDate(neighborhoodData.lastUpdatedAt)}
+          <Animated.ScrollView
+            className="flex-1"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingTop: 0 }}
+            scrollEventThrottle={16}
+            onScroll={scrollHandler}
+          >
+            {/* Header Section */}
+            <View className="px-6 py-6">
+              <Text className="text-text-primary text-3xl font-geist-bold mb-2">
+                About Your Neighborhood
+              </Text>
+              <Text className="text-text-muted text-base font-geist-regular">
+                View and manage neighborhood information
               </Text>
             </View>
 
-            {/* Edit Information Button */}
-            {!isEditMode && (
-              <View className="px-5 py-7 pb-5">
-                <TouchableOpacity
-                  style={{ backgroundColor: '#3B82F6' }}
-                  className="rounded-lg py-4.5 flex-row items-center justify-center gap-2"
-                  onPress={handleEditPress}
-                  activeOpacity={0.8}
-                >
-                  <Edit2 size={16} color="#ffffff" />
-                  <Text className="text-white text-sm font-geist-semibold">
-                    Edit Information
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* Cancel/Submit Buttons in Edit Mode */}
-            {isEditMode && (
-              <View className="px-6 pb-6 flex-row gap-3">
-                <TouchableOpacity
-                  className="flex-1 bg-gray-600 rounded-lg py-4"
-                  onPress={handleCancelEdit}
-                  activeOpacity={0.8}
-                >
-                  <Text className="text-white text-base font-geist-semibold text-center">
-                    Cancel
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  className="flex-1 bg-green-500 rounded-lg py-4"
-                  onPress={handleSubmitEdit}
-                  activeOpacity={0.8}
-                >
-                  <Text className="text-white text-base font-geist-semibold text-center">
-                    Save Changes
-                  </Text>
-                </TouchableOpacity>
-              </View>
+            {/* Static Header Section */}
+            {neighborhoodData && (
+              <StaticHeader
+                neighborhoodData={neighborhoodData}
+                isEditMode={isEditMode}
+                onEditPress={handleEditPress}
+                onCancelEdit={handleCancelEdit}
+                onSubmitEdit={handleSubmitEdit}
+              />
             )}
 
             {/* Dynamic Content */}
             {renderContent()}
 
-            {/* Bottom Padding */}
-            <View className="h-8" />
-          </View>
-        </ScrollView>
+            {/* Footer */}
+            {neighborhoodData && (
+              <View className="px-6 pb-6">
+                <Text className="text-text-secondary text-xs font-geist-regular text-center">
+                  Data last updated:{' '}
+                  {formatDate(neighborhoodData.lastUpdatedAt)}
+                </Text>
+              </View>
+            )}
+          </Animated.ScrollView>
+        </>
       )}
 
       {/* Notification */}
