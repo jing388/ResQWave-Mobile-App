@@ -43,13 +43,51 @@ const formatTime = (dateString: string | null): string => {
 };
 
 /**
- * Format completion time as stopwatch format (HH:MM:SS.MS)
- * Currently inactive - displays placeholder format
- * Example: "00:00:00.00"
+ * Format completion time as readable date/time with day of week
+ * Example: "January 17, 2026 at 10:33:39 AM"
  */
 const formatCompletionTime = (dateString: string | null): string => {
-  // Placeholder stopwatch format (inactive)
-  return '00:00:00.00';
+  if (!dateString) return 'N/A';
+  try {
+    const date = new Date(dateString);
+    const dateFormatted = date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+    const time = date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+    });
+    return `${dateFormatted} at ${time}`;
+  } catch {
+    return dateString;
+  }
+};
+
+/**
+ * Calculate response duration between alert time and completion time
+ * Example: "1759:55:37"
+ */
+const calculateResponseDuration = (startTime: string | null, endTime: string | null): string => {
+  if (!startTime || !endTime) return 'N/A';
+  try {
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    const diffMs = end.getTime() - start.getTime();
+
+    if (diffMs < 0) return 'N/A';
+
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  } catch {
+    return 'N/A';
+  }
 };
 
 /**
@@ -77,6 +115,34 @@ const formatDateTimeWithDay = (dateString: string | null): string => {
   } catch {
     return dateString;
   }
+};
+
+/**
+ * Format address - extract the address string from object or return as-is
+ */
+const formatAddress = (address: any): string => {
+  if (!address) return 'N/A';
+
+  // If it's already a plain string, return it
+  if (typeof address === 'string') {
+    // Try to parse if it looks like JSON
+    if (address.trim().startsWith('{')) {
+      try {
+        const parsed = JSON.parse(address);
+        return parsed?.address || parsed?.fullAddress || address;
+      } catch {
+        return address;
+      }
+    }
+    return address;
+  }
+
+  // If it's an object, extract the address field
+  if (typeof address === 'object') {
+    return address?.address || address?.fullAddress || String(address);
+  }
+
+  return String(address);
 };
 
 /**
@@ -330,7 +396,7 @@ const generateReportHTML = (data: DetailedReportData): string => {
               </tr>
               <tr>
                 <td>Focal Person's Address</td>
-                <td>${data.focalAddress || 'N/A'}</td>
+                <td>${formatAddress(data.focalAddress)}</td>
               </tr>
               <tr>
                 <td>Focal Person's Contact Number</td>
@@ -376,8 +442,8 @@ const generateReportHTML = (data: DetailedReportData): string => {
                 <td>${data.otherInformation || 'N/A'}</td>
               </tr>
               <tr>
-                <td>Time of Rescue</td>
-                <td>${formatDateTimeWithDay(data.dateTimeOccurred)}</td>
+                <td>Date Time Occurred</td>
+                <td>${formatCompletionTime(data.dateTimeOccurred)}</td>
               </tr>
               <tr>
                 <td>Alert Type</td>
@@ -393,11 +459,15 @@ const generateReportHTML = (data: DetailedReportData): string => {
           <table class="completion-table">
             <thead>
               <tr>
-                <th>Rescue Completion Time</th>
-                <th>${formatCompletionTime(data.completionDate)}</th>
+                <th>Response Duration</th>
+                <th>${calculateResponseDuration(data.dateTimeOccurred, data.completionDate)}</th>
               </tr>
             </thead>
             <tbody>
+              <tr>
+                <td>Rescue Completion Time</td>
+                <td>${formatCompletionTime(data.completionDate)}</td>
+              </tr>
               <tr>
                 <td>No. of Personnel Deployed</td>
                 <td>${data.noOfPersonnel || 'N/A'}</td>
@@ -441,14 +511,14 @@ const generateReportHTML = (data: DetailedReportData): string => {
 export const generateReportPDF = async (reportData: DetailedReportData): Promise<string> => {
   try {
     console.log('📄 Generating PDF for report:', reportData.emergencyId);
-    
+
     const html = generateReportHTML(reportData);
-    
+
     const { uri } = await Print.printToFileAsync({
       html,
       base64: false,
     });
-    
+
     console.log('✅ PDF generated successfully:', uri);
     return uri;
   } catch (error) {
@@ -464,10 +534,10 @@ export const generateReportPDF = async (reportData: DetailedReportData): Promise
 export const generateAndSharePDF = async (reportData: DetailedReportData): Promise<void> => {
   try {
     const uri = await generateReportPDF(reportData);
-    
+
     // Check if sharing is available
     const isAvailable = await Sharing.isAvailableAsync();
-    
+
     if (isAvailable) {
       await Sharing.shareAsync(uri, {
         mimeType: 'application/pdf',
@@ -494,17 +564,17 @@ export const saveReportPDF = async (
 ): Promise<string> => {
   try {
     const uri = await generateReportPDF(reportData);
-    
+
     // Create a custom filename if not provided
     const pdfFilename = filename || `rescue_report_${reportData.emergencyId}_${Date.now()}.pdf`;
     const destinationUri = `${FileSystem.documentDirectory}${pdfFilename}`;
-    
+
     // Move the file to a permanent location
     await FileSystem.moveAsync({
       from: uri,
       to: destinationUri,
     });
-    
+
     console.log('✅ PDF saved to:', destinationUri);
     return destinationUri;
   } catch (error) {
