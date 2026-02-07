@@ -57,28 +57,40 @@ export default function VerificationScreen() {
 
       // Check if user is new and needs onboarding
       setTimeout(() => {
-        if (response.user?.newUser) {
-          // Navigate to onboarding with user details
-          // Use the focal person's address instead of terminal info
-          const userLocation = response.user.addressText || response.user.address || 'your neighborhood';
+        try {
+          console.log('🚀 Navigating after verification success...');
+          console.log('📦 User data:', JSON.stringify(response.user, null, 2));
 
-          // Use firstName if available, otherwise fall back to name or 'User'
-          const userName = response.user.firstName || response.user.name || 'User';
+          if (response.user?.newUser) {
+            // Navigate to onboarding with user details
+            // Use the focal person's address instead of terminal info
+            const userLocation = response.user.addressText || response.user.address || 'your neighborhood';
 
-          router.replace({
-            pathname: '/onboarding',
-            params: {
-              userName: userName,
-              neighborhoodName: userLocation,
-              userAddress: response.user.addressText || response.user.address || '',
-            },
-          });
-        } else {
-          // Go directly to main app with fresh login flag
-          router.replace({
-            pathname: '/(tabs)',
-            params: { freshLogin: 'true' },
-          });
+            // Use firstName if available, otherwise fall back to name or 'User'
+            const userName = response.user.firstName || response.user.name || 'User';
+
+            console.log('➡️ Navigating to onboarding...');
+            router.replace({
+              pathname: '/onboarding',
+              params: {
+                userName: userName,
+                neighborhoodName: userLocation,
+                userAddress: response.user.addressText || response.user.address || '',
+              },
+            });
+          } else {
+            console.log('➡️ Navigating to tabs (main app)...');
+            router.replace({
+              pathname: '/(tabs)',
+              params: { freshLogin: 'true' },
+            });
+          }
+        } catch (navError: any) {
+          console.error('❌ Navigation error:', navError);
+          Alert.alert(
+            'Navigation Error',
+            'Failed to navigate to main screen. Please restart the app.',
+          );
         }
       }, 1000);
     } catch (error: any) {

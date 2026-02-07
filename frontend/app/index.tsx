@@ -57,7 +57,7 @@ export default function WelcomeScreen() {
         {/* Main content - centered */}
         <View className="flex-1 items-center justify-center">
           <Image
-            source={require('@/assets/images/resqwave-logo.png')}
+            source={require('@/assets/images/icon.png')}
             className="w-16 h-16 mb-4"
           />
           <Text className="font-geist-semibold text-text-primary text-4xl leading-[1.5] text-center mb-12">

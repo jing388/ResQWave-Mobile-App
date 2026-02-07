@@ -48,12 +48,17 @@ export async function apiFetch<T = any>(
   }
 
   try {
+    // Add timeout to prevent hanging requests (30 seconds)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+
     const res = await fetch(url, {
       ...options,
+      signal: controller.signal,
       headers: {
         // Only set Content-Type for non-FormData requests
-        ...(options.body instanceof FormData 
-          ? {} 
+        ...(options.body instanceof FormData
+          ? {}
           : { 'Content-Type': 'application/json' }
         ),
         // Only add Authorization header if token exists AND not a public endpoint
@@ -62,6 +67,7 @@ export async function apiFetch<T = any>(
       },
     });
 
+    clearTimeout(timeoutId);
     console.log(`📥 API Response: ${res.status} ${res.statusText}`);
 
     // Handle authentication errors
@@ -111,6 +117,12 @@ export async function apiFetch<T = any>(
 
     return res.json();
   } catch (error: any) {
+    // Handle timeout errors
+    if (error.name === 'AbortError') {
+      console.error('⏱️ Request timeout after 30 seconds');
+      throw new Error('Request timeout. The server took too long to respond. Please try again.');
+    }
+
     console.error('❌ Network request failed:', error.message);
     console.error('🔧 Debugging info:');
     console.error('  - URL:', url);
