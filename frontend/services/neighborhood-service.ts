@@ -92,6 +92,7 @@ export const fetchOwnNeighborhood = async (): Promise<MarkerData | null> => {
       terminalName: data.terminalName || null,
       address: addressData.address,
       dateRegistered: data.createdDate || '',
+      lastUpdatedAt: data.createdDate || '',
       type: 'own' as const,
       focalPersonName: data.focalPerson.name,
       hazards: data.hazards || [],
@@ -139,6 +140,7 @@ export const fetchOtherNeighborhoods = async (): Promise<MarkerData[]> => {
         terminalName: nb.terminalName || null,
         address: addressData.address,
         dateRegistered: nb.createdDate || '',
+        lastUpdatedAt: nb.createdDate || '',
         type: 'other',
         focalPersonName: nb.focalPerson,
         hazards: nb.hazards || [],
@@ -274,6 +276,7 @@ export const fetchNeighborhoodDetails = async (
       registeredAt: createdDate || '',
       lastUpdatedAt: updatedDate || '',
       terminalID: data.terminalID || '',
+      terminalName: data.terminalName || undefined,
       terminalAddress: coordinates.address || '',
       coordinates: {
         latitude: coordinates.latitude,

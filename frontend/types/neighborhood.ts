@@ -88,6 +88,7 @@ export interface MarkerData {
   terminalName: string | null;
   address: string;
   dateRegistered: string;
+  lastUpdatedAt: string;
   type: 'own' | 'other';
   focalPersonName: string | null;
   hazards: string[];
@@ -100,6 +101,7 @@ export interface NeighborhoodData {
   registeredAt: string;
   lastUpdatedAt: string;
   terminalID: string;
+  terminalName?: string;
   terminalAddress: string;
   coordinates: {
     latitude: number;
@@ -130,6 +132,20 @@ export interface FloodHazard {
   checked: boolean;
 }
 
+export interface FamilyMember {
+  id: string;
+  name: string;
+  editing?: boolean; // member name input is active
+}
+
+export interface Family {
+  id: string;
+  name: string;
+  members: FamilyMember[];
+  expanded?: boolean;
+  editing?: boolean; // family name input is active
+}
+
 export interface EditedData {
   approxHouseholds: number | string;
   approxResidents: number | string;
@@ -137,6 +153,7 @@ export interface EditedData {
   floodwaterSubsidence: string;
   floodRelatedHazards: FloodHazard[];
   notableInfo: string;
+  families: Family[];
   alternativeFocalPerson: {
     firstName: string;
     lastName: string;

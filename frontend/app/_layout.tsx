@@ -15,6 +15,7 @@ import '../global.css';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { setGlobalLogoutCallback } from '@/lib/api-client';
 import { WithSplashScreen } from '@/components/ui/splash-screen';
+import { EditModeProvider } from '@/contexts/edit-mode-context';
 
 // Load Geist fonts
 import {
@@ -26,7 +27,6 @@ import {
   Geist_600SemiBold,
   Geist_700Bold,
   Geist_800ExtraBold,
-  Geist_900Black,
 } from '@expo-google-fonts/geist';
 
 export default function RootLayout() {
@@ -43,8 +43,15 @@ export default function RootLayout() {
     'geist-semibold': Geist_600SemiBold,
     'geist-bold': Geist_700Bold,
     'geist-extrabold': Geist_800ExtraBold,
-    'geist-black': Geist_900Black,
   });
+
+  // Log font errors but don't hard-fail — allows graceful fallback to system fonts
+  useEffect(() => {
+    if (fontError) {
+      console.warn('⚠️ Font download failed (DEV SERVER):', fontError.message);
+      console.warn('App will continue with system fonts as fallback.');
+    }
+  }, [fontError]);
 
   // Set up global logout callback for 401/403 errors
   useEffect(() => {
@@ -64,30 +71,28 @@ export default function RootLayout() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Initialize app - wait for BOTH fonts AND minimum time
+  // Initialize app - fonts optional, continue after 2 seconds even if they fail
   useEffect(() => {
-    if (fontError) {
-      console.error('❌ Font loading error:', fontError);
-      // Still need to wait for minimum time even if fonts fail
-      if (minTimeElapsed) {
-        setIsAppReady(true);
-      }
+    if (fontError && minTimeElapsed) {
+      console.log('⚡ app starting without fonts (font download failed)');
+      setIsAppReady(true);
       return;
     }
 
     if (fontsLoaded && minTimeElapsed) {
-      console.log('✅ Fonts loaded and minimum time elapsed');
+      console.log('✅ app ready with fonts and fonts loaded');
       setIsAppReady(true);
     }
   }, [fontsLoaded, fontError, minTimeElapsed])
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <BottomSheetModalProvider>
-        <ThemeProvider
-          value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}
-        >
-          <WithSplashScreen isAppReady={isAppReady}>
+      <EditModeProvider>
+        <BottomSheetModalProvider>
+          <ThemeProvider
+            value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}
+          >
+            <WithSplashScreen isAppReady={isAppReady}>
             <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
             <Stack
               screenOptions={{
@@ -200,9 +205,10 @@ export default function RootLayout() {
               />
             </Stack>
             <StatusBar style="light" />
-          </WithSplashScreen>
-        </ThemeProvider>
-      </BottomSheetModalProvider>
+            </WithSplashScreen>
+          </ThemeProvider>
+        </BottomSheetModalProvider>
+      </EditModeProvider>
     </GestureHandlerRootView>
   );
 }

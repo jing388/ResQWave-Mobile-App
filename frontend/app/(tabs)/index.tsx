@@ -382,63 +382,37 @@ export default function HomeScreen() {
           
           {/* Dynamically render all markers and their circles */}
           {markers.map((marker) => {
-            // Get marker color based on type (keep owned neighborhoods green even when selected)
-            const getMarkerColor = () => {
-              // Keep green (own) neighborhoods green even when selected
-              if (marker.type === 'own') {
-                return '#34D399'; // Green for own neighborhood (always)
-              }
-              // For other neighborhoods, show blue when selected
-              if (activeMarkerId === marker.id) {
-                return '#007AFF'; // Blue for selected neighborhood
-              }
-              // Default gray for unselected other neighborhoods
-              return '#9CA3AF'; // Gray for other neighborhoods
-            };
+            // Own neighborhood = green, all others = blue (always)
+            const markerColor = marker.type === 'own' ? '#34D399' : '#3B82F6';
 
-            const markerColor = getMarkerColor();
-
-            // Circle colors for active marker - match the marker color
-            const circleColors = {
-              fill:
-                marker.type === 'own'
-                  ? 'rgba(52, 211, 153, 0.1)' // Green for own (always)
-                  : activeMarkerId === marker.id
-                    ? 'rgba(0, 122, 255, 0.1)' // Blue for selected other
-                    : 'rgba(156, 163, 175, 0.1)', // Gray for unselected other
-              stroke:
-                marker.type === 'own'
-                  ? 'rgba(52, 211, 153, 0.3)' // Green for own (always)
-                  : activeMarkerId === marker.id
-                    ? 'rgba(0, 122, 255, 0.3)' // Blue for selected other
-                    : 'rgba(156, 163, 175, 0.3)', // Gray for unselected other
-            };
+            // Circle fill/stroke matches marker color
+            const circleFill = marker.type === 'own'
+              ? 'rgba(52, 211, 153, 0.1)'
+              : 'rgba(59, 130, 246, 0.1)';
+            const circleStroke = marker.type === 'own'
+              ? 'rgba(52, 211, 153, 0.3)'
+              : 'rgba(59, 130, 246, 0.3)';
 
             return (
               <React.Fragment key={marker.id}>
-                {/* Range Circle - only show if this marker is active */}
+                {/* Range circle - visible only for tapped marker */}
                 {activeMarkerId === marker.id && (
                   <Circle
-                    center={{
-                      latitude: marker.latitude,
-                      longitude: marker.longitude,
-                    }}
+                    center={{ latitude: marker.latitude, longitude: marker.longitude }}
                     radius={100}
-                    fillColor={circleColors.fill}
-                    strokeColor={circleColors.stroke}
+                    fillColor={circleFill}
+                    strokeColor={circleStroke}
                     strokeWidth={2}
                   />
                 )}
 
-                {/* Marker with custom color */}
+                {/* Native pin marker - uses pinColor to avoid all custom-view clipping bugs */}
                 <Marker
-                  key={`${marker.id}-${activeMarkerId === marker.id ? 'active' : 'inactive'}`}
-                  coordinate={{
-                    latitude: marker.latitude,
-                    longitude: marker.longitude,
-                  }}
+                  key={`${marker.id}-marker`}
+                  coordinate={{ latitude: marker.latitude, longitude: marker.longitude }}
                   onPress={() => handleMarkerPress(marker)}
                   pinColor={markerColor}
+                  title={marker.type === 'own' ? 'Your Community' : marker.neighborhoodID}
                 />
               </React.Fragment>
             );

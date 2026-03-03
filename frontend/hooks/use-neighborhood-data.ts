@@ -8,6 +8,8 @@ import {
 } from '@/services/neighborhood-service';
 import {
   EditedData,
+  Family,
+  FamilyMember,
   FloodHazard,
   NeighborhoodData,
 } from '@/types/neighborhood';
@@ -36,6 +38,17 @@ export interface UseNeighborhoodDataReturn {
   handleHazardToggle: (index: number) => void;
   handleNotableInfoChange: (text: string) => void;
   handleAlternativeFocalChange: (field: string, value: string) => void;
+  // family handlers
+  handleAddFamily: () => void;
+  handleDeleteFamily: (id: string) => void;
+  handleRenameFamilyStart: (id: string) => void;
+  handleRenameFamilyCommit: (id: string, newName: string) => void;
+  handleToggleFamilyExpand: (id: string) => void;
+  // family member handlers
+  handleAddMember: (familyId: string) => void;
+  handleDeleteMember: (familyId: string, memberId: string) => void;
+  handleRenameMemberStart: (familyId: string, memberId: string) => void;
+  handleRenameMemberCommit: (familyId: string, memberId: string, newName: string) => void;
 }
 
 export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighborhoodDataReturn => {
@@ -59,6 +72,7 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
     floodwaterSubsidence: '',
     floodRelatedHazards: [] as FloodHazard[],
     notableInfo: '',
+    families: [] as Family[],
     alternativeFocalPerson: {
       firstName: '',
       lastName: '',
@@ -134,6 +148,7 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
             ),
           })),
           notableInfo: data.notableInfo.join('\n'),
+          families: [] as Family[], // populated from backend when available
           alternativeFocalPerson: {
             firstName: data.alternativeFocalPerson.name.split(' ')[0] || '',
             lastName:
@@ -186,6 +201,7 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
           ),
         })),
         notableInfo: neighborhoodData.notableInfo.join('\n'),
+        families: editedData.families, // preserve family edits on cancel of other fields
         alternativeFocalPerson: {
           firstName:
             neighborhoodData.alternativeFocalPerson.name.split(' ')[0] || '',
@@ -328,6 +344,126 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
     }));
   };
 
+  // ─── Family handlers ───────────────────────────────────────────
+  const handleAddFamily = () => {
+    const newFamily: Family = {
+      id: Date.now().toString(),
+      name: '',
+      members: [
+        { id: Date.now().toString() + '1', name: '' },
+        { id: Date.now().toString() + '2', name: '' },
+      ],
+      expanded: true,
+      editing: true,
+    };
+    setEditedData((prev) => ({
+      ...prev,
+      families: [...prev.families, newFamily],
+    }));
+  };
+
+  const handleDeleteFamily = (id: string) => {
+    setEditedData((prev) => ({
+      ...prev,
+      families: prev.families.filter((f) => f.id !== id),
+    }));
+  };
+
+  const handleRenameFamilyStart = (id: string) => {
+    setEditedData((prev) => ({
+      ...prev,
+      families: prev.families.map((f) =>
+        f.id === id ? { ...f, editing: true, expanded: true } : { ...f, editing: false },
+      ),
+    }));
+  };
+
+  const handleRenameFamilyCommit = (id: string, newName: string) => {
+    setEditedData((prev) => ({
+      ...prev,
+      families: prev.families.map((f) =>
+        f.id === id ? { ...f, name: newName.trim(), editing: false } : f,
+      ),
+    }));
+  };
+
+  const handleToggleFamilyExpand = (id: string) => {
+    setEditedData((prev) => ({
+      ...prev,
+      families: prev.families.map((f) =>
+        f.id === id ? { ...f, expanded: !f.expanded, editing: false } : f,
+      ),
+    }));
+  };
+
+  // ─── Family member handlers ───────────────────────────────────────────
+  const handleAddMember = (familyId: string) => {
+    setEditedData((prev) => ({
+      ...prev,
+      families: prev.families.map((f) =>
+        f.id === familyId
+          ? {
+              ...f,
+              members: [
+                ...f.members,
+                {
+                  id: Date.now().toString(),
+                  name: '',
+                  editing: true,
+                },
+              ],
+            }
+          : f,
+      ),
+    }));
+  };
+
+  const handleDeleteMember = (familyId: string, memberId: string) => {
+    setEditedData((prev) => ({
+      ...prev,
+      families: prev.families.map((f) =>
+        f.id === familyId
+          ? {
+              ...f,
+              members: f.members.filter((m) => m.id !== memberId),
+            }
+          : f,
+      ),
+    }));
+  };
+
+  const handleRenameMemberStart = (familyId: string, memberId: string) => {
+    setEditedData((prev) => ({
+      ...prev,
+      families: prev.families.map((f) =>
+        f.id === familyId
+          ? {
+              ...f,
+              members: f.members.map((m) =>
+                m.id === memberId ? { ...m, editing: true } : m,
+              ),
+            }
+          : f,
+      ),
+    }));
+  };
+
+  const handleRenameMemberCommit = (familyId: string, memberId: string, newName: string) => {
+    setEditedData((prev) => ({
+      ...prev,
+      families: prev.families.map((f) =>
+        f.id === familyId
+          ? {
+              ...f,
+              members: f.members.map((m) =>
+                m.id === memberId ? { ...m, name: newName.trim(), editing: false } : m,
+              ),
+            }
+          : f,
+      ),
+    }));
+  };
+
   return {
     isEditMode,
     isLoading,
@@ -344,5 +480,14 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
     handleHazardToggle,
     handleNotableInfoChange,
     handleAlternativeFocalChange,
+    handleAddFamily,
+    handleDeleteFamily,
+    handleRenameFamilyStart,
+    handleRenameFamilyCommit,
+    handleToggleFamilyExpand,
+    handleAddMember,
+    handleDeleteMember,
+    handleRenameMemberStart,
+    handleRenameMemberCommit,
   }; 
 };
