@@ -430,7 +430,13 @@ export default function HomeScreen() {
               placeholder="Search locations"
               locations={pinnedLocations}
               onLocationSelect={handleLocationSelect}
-              onDropdownOpen={setIsDropdownOpen}
+              onDropdownOpen={(isOpen) => {
+                setIsDropdownOpen(isOpen);
+                // Close InfoSheet when search dropdown opens
+                if (isOpen && sheetVisible) {
+                  hideBottomSheet();
+                }
+              }}
             />
             <Avatar
               size="md"
