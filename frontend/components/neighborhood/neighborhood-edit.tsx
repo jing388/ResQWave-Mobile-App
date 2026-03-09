@@ -4,7 +4,7 @@ import { EditableCheckbox } from '@/components/ui/editable-checkbox';
 import { EditedData, Family, NeighborhoodData } from '@/types/neighborhood';
 import { NeighborhoodDropdownOptions } from '@/constants/neighborhood-options';
 import React, { useState } from 'react';
-import { Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { ChevronDown, ChevronUp, Pencil, Trash2, Plus } from 'lucide-react-native';
 
 // ─────────────────────────────────────────────
@@ -153,12 +153,96 @@ export const NeighborhoodEdit: React.FC<NeighborhoodEditProps> = ({
     paddingVertical: 8,
   };
 
+  const familyCount = editedData.families.length;
+  const singleFamily = familyCount === 1 ? editedData.families[0] : null;
+  const showLargeAddMember =
+    familyCount === 1 && !!singleFamily && singleFamily.members.length > 0;
+  const showInlineAddMember = familyCount >= 2;
+
+  const lastNamedFamily = [...editedData.families]
+    .reverse()
+    .find((family) => !family.editing && family.name.trim().length > 0);
+
+  const cleanupEmptyEntries = () => {
+    const familiesToDelete: string[] = [];
+    const membersToDelete: Array<{ familyId: string; memberId: string }> = [];
+
+    editedData.families.forEach((family) => {
+      if (family.editing) {
+        const draftName = getDraft(family.id, family.name).trim();
+        if (!draftName && !family.name.trim()) {
+          familiesToDelete.push(family.id);
+        } else {
+          commitDraft(family.id, family.name);
+        }
+      }
+
+      if (!familiesToDelete.includes(family.id)) {
+        family.members.forEach((member) => {
+          if (member.editing) {
+            const draftMemberName = getMemberDraft(
+              family.id,
+              member.id,
+              member.name,
+            ).trim();
+            if (!draftMemberName && !member.name.trim()) {
+              membersToDelete.push({ familyId: family.id, memberId: member.id });
+            } else {
+              commitMemberDraft(family.id, member.id, member.name);
+            }
+          }
+        });
+      }
+    });
+
+    membersToDelete.forEach(({ familyId, memberId }) =>
+      onDeleteMember(familyId, memberId),
+    );
+    familiesToDelete.forEach((familyId) => onDeleteFamily(familyId));
+  };
+
+  const confirmDeleteFamily = (familyId: string, familyName: string) => {
+    const displayName = familyName.trim() || 'this family';
+    Alert.alert(
+      'Delete Family',
+      `Are you sure you want to delete ${displayName}? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => onDeleteFamily(familyId),
+        },
+      ],
+    );
+  };
+
+  const confirmDeleteMember = (familyId: string, memberId: string, memberName: string) => {
+    const displayName = memberName.trim() || 'this member';
+    Alert.alert(
+      'Delete Member',
+      `Are you sure you want to delete ${displayName}? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => onDeleteMember(familyId, memberId),
+        },
+      ],
+    );
+  };
+
   return (
     <View
       style={{
         paddingHorizontal: 24,
         backgroundColor: '#171717',
         paddingBottom: 40,
+      }}
+      onStartShouldSetResponderCapture={() => {
+        cleanupEmptyEntries();
+        return false;
       }}
     >
       {/* ── ABOUT THE NEIGHBORHOOD ─────────────────────── */}
@@ -253,7 +337,7 @@ export const NeighborhoodEdit: React.FC<NeighborhoodEditProps> = ({
                       returnKeyType="done"
                     />
                     <TouchableOpacity
-                      onPress={() => onDeleteFamily(family.id)}
+                      onPress={() => confirmDeleteFamily(family.id, family.name)}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
                       <Trash2 size={18} color="#EF4444" />
@@ -294,7 +378,7 @@ export const NeighborhoodEdit: React.FC<NeighborhoodEditProps> = ({
                           <Pencil size={16} color="#9CA3AF" />
                         </TouchableOpacity>
                         <TouchableOpacity
-                          onPress={() => onDeleteFamily(family.id)}
+                          onPress={() => confirmDeleteFamily(family.id, family.name)}
                           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         >
                           <Trash2 size={16} color="#EF4444" />
@@ -312,8 +396,32 @@ export const NeighborhoodEdit: React.FC<NeighborhoodEditProps> = ({
                 {/* Member list (expanded, not editing header) */}
                 {isExpanded && !isEditing && (
                   <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
+                    {/* Show reminder if no named members */}
+                    {family.members.filter((m) => m.name.trim()).length === 0 && (
+                      <View
+                        style={{
+                          paddingVertical: 12,
+                          paddingHorizontal: 12,
+                          backgroundColor: '#2A2A2A',
+                          borderRadius: 8,
+                          marginBottom: 12,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: '#9CA3AF',
+                            fontSize: 13,
+                            fontFamily: 'Geist-Regular',
+                            fontStyle: 'italic',
+                            textAlign: 'center',
+                          }}
+                        >
+                          Tap "Add Member" below to add family members
+                        </Text>
+                      </View>
+                    )}
                     {/* Existing members */}
-                    {family.members.map((member, mIdx) => {
+                    {family.members.filter((m) => m.name.trim() || m.editing).map((member, mIdx) => {
                       const isEditingMember = !!member.editing;
                       return isEditingMember ? (
                         /* Member edit mode */
@@ -350,7 +458,9 @@ export const NeighborhoodEdit: React.FC<NeighborhoodEditProps> = ({
                             returnKeyType="done"
                           />
                           <TouchableOpacity
-                            onPress={() => onDeleteMember(family.id, member.id)}
+                            onPress={() =>
+                              confirmDeleteMember(family.id, member.id, member.name)
+                            }
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                           >
                             <Trash2 size={16} color="#EF4444" />
@@ -390,7 +500,9 @@ export const NeighborhoodEdit: React.FC<NeighborhoodEditProps> = ({
                             <Pencil size={14} color="#9CA3AF" />
                           </TouchableOpacity>
                           <TouchableOpacity
-                            onPress={() => onDeleteMember(family.id, member.id)}
+                            onPress={() =>
+                              confirmDeleteMember(family.id, member.id, member.name)
+                            }
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                           >
                             <Trash2 size={14} color="#EF4444" />
@@ -399,27 +511,67 @@ export const NeighborhoodEdit: React.FC<NeighborhoodEditProps> = ({
                       );
                     })}
 
-                    {/* Add Member button */}
-                    <TouchableOpacity
-                      onPress={() => onAddMember(family.id)}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: 6,
-                        marginTop: 8,
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <Plus size={14} color="#3B82F6" />
-                      <Text style={{ color: '#3B82F6', fontSize: 13, fontFamily: 'Geist-Medium' }}>
-                        Add Member
-                      </Text>
-                    </TouchableOpacity>
+                    {showInlineAddMember && (
+                      <TouchableOpacity
+                        onPress={() => onAddMember(family.id)}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 6,
+                          marginTop: 8,
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Plus size={14} color="#3B82F6" />
+                        <Text
+                          style={{
+                            color: '#3B82F6',
+                            fontSize: 13,
+                            fontFamily: 'Geist-Medium',
+                          }}
+                        >
+                          Add Member
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 )}
               </View>
             );
           })
+        )}
+
+        {showLargeAddMember && (
+          <TouchableOpacity
+            onPress={() => {
+              if (lastNamedFamily) {
+                onAddMember(lastNamedFamily.id);
+              }
+            }}
+            disabled={!lastNamedFamily}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+              paddingHorizontal: 16,
+              paddingVertical: 14,
+              borderTopWidth: editedData.families.length > 0 ? 1 : 0,
+              borderTopColor: '#2A2A2A',
+              opacity: lastNamedFamily ? 1 : 0.45,
+            }}
+            activeOpacity={0.7}
+          >
+            <Plus size={16} color={lastNamedFamily ? '#3B82F6' : '#6B7280'} />
+            <Text
+              style={{
+                color: lastNamedFamily ? '#3B82F6' : '#6B7280',
+                fontSize: 14,
+                fontFamily: 'Geist-Medium',
+              }}
+            >
+              Add Member
+            </Text>
+          </TouchableOpacity>
         )}
 
         {/* Add Family button */}

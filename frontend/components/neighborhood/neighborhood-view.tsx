@@ -171,6 +171,8 @@ export const NeighborhoodView: React.FC<NeighborhoodViewProps> = ({
   const toggleFamily = (idx: number) =>
     setExpandedFamilies((prev) => ({ ...prev, [idx]: !prev[idx] }));
 
+  const families = neighborhoodData.familyDetails || [];
+
   // Build the info rows for "About the Neighborhood", filtering out empty values
   const aboutRows: { label: string; value: string }[] = [
     { label: 'Registered At', value: formatDate(neighborhoodData.registeredAt) },
@@ -284,70 +286,110 @@ export const NeighborhoodView: React.FC<NeighborhoodViewProps> = ({
       {/* ── FAMILY DETAILS ──────────────────────────────── */}
       <SectionHeader title="FAMILY DETAILS" />
       <View style={{ backgroundColor: '#1D1D1D', borderRadius: 12, overflow: 'hidden' }}>
-        {/* 
-          Placeholder: family detail data is not yet returned by the backend.
-          When a families array is available on neighborhoodData, replace this
-          block with an accordion list similar to the pattern below (commented).
-        */}
-        <View style={{ padding: 20, alignItems: 'center' }}>
-          <Text
-            style={{
-              color: '#6B7280',
-              fontSize: 14,
-              fontFamily: 'Geist-Regular',
-              fontStyle: 'italic',
-            }}
-          >
-            No family data registered yet.
-          </Text>
-        </View>
+        {families.length === 0 ? (
+          <View style={{ padding: 20, alignItems: 'center' }}>
+            <Text
+              style={{
+                color: '#6B7280',
+                fontSize: 14,
+                fontFamily: 'Geist-Regular',
+                fontStyle: 'italic',
+              }}
+            >
+              No family data registered yet.
+            </Text>
+          </View>
+        ) : (
+          families.map((family, idx) => {
+            const isExpanded = !!expandedFamilies[idx];
+            const isLast = idx === families.length - 1;
 
-        {/*
-          ── Example accordion pattern (uncomment when backend provides families) ──
-          {families.map((family, idx) => (
-            <View key={idx}>
-              <TouchableOpacity
-                onPress={() => toggleFamily(idx)}
+            return (
+              <View
+                key={`${family.familyName}_${idx}`}
                 style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  paddingHorizontal: 16,
-                  paddingVertical: 14,
-                  borderBottomWidth: expandedFamilies[idx] ? 1 : 0,
+                  borderBottomWidth: isLast ? 0 : 1,
                   borderBottomColor: '#2A2A2A',
                 }}
               >
-                <Text style={{ color: '#FFFFFF', fontSize: 14, fontFamily: 'Geist-Medium' }}>
-                  {family.name}
-                </Text>
-                {expandedFamilies[idx]
-                  ? <ChevronUp size={18} color="#9CA3AF" />
-                  : <ChevronDown size={18} color="#9CA3AF" />}
-              </TouchableOpacity>
-              {expandedFamilies[idx] &&
-                family.members.map((member, mIdx) => (
-                  <View
-                    key={mIdx}
+                <TouchableOpacity
+                  onPress={() => toggleFamily(idx)}
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    paddingHorizontal: 16,
+                    paddingVertical: 14,
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text
                     style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      paddingHorizontal: 16,
-                      paddingVertical: 12,
-                      gap: 10,
-                      borderBottomWidth: mIdx < family.members.length - 1 ? 1 : 0,
-                      borderBottomColor: '#2A2A2A',
+                      color: '#FFFFFF',
+                      fontSize: 14,
+                      fontFamily: 'Geist-Medium',
                     }}
                   >
-                    <View style={{ width: 18, height: 18, borderRadius: 3, backgroundColor: '#374151' }} />
-                    <Text style={{ color: '#FFFFFF', fontSize: 14, fontFamily: 'Geist-Regular' }}>
-                      {member}
-                    </Text>
+                    {family.familyName}
+                  </Text>
+                  {isExpanded ? (
+                    <ChevronUp size={18} color="#9CA3AF" />
+                  ) : (
+                    <ChevronDown size={18} color="#9CA3AF" />
+                  )}
+                </TouchableOpacity>
+
+                {isExpanded && (
+                  <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
+                    {family.members.length > 0 ? (
+                      family.members.map((member, memberIdx) => (
+                        <View
+                          key={`${member}_${memberIdx}`}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 8,
+                            marginBottom: 8,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              color: '#9CA3AF',
+                              fontSize: 14,
+                              fontFamily: 'Geist-Regular',
+                            }}
+                          >
+                            •
+                          </Text>
+                          <Text
+                            style={{
+                              color: '#FFFFFF',
+                              fontSize: 14,
+                              fontFamily: 'Geist-Regular',
+                            }}
+                          >
+                            {member}
+                          </Text>
+                        </View>
+                      ))
+                    ) : (
+                      <Text
+                        style={{
+                          color: '#6B7280',
+                          fontSize: 13,
+                          fontFamily: 'Geist-Regular',
+                          fontStyle: 'italic',
+                        }}
+                      >
+                        No members added yet.
+                      </Text>
+                    )}
                   </View>
-                ))}
-            </View>
-          ))}
-        */}
+                )}
+              </View>
+            );
+          })
+        )}
       </View>
 
       {/* ── FOCAL PERSONS ───────────────────────────────── */}

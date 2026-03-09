@@ -113,6 +113,10 @@ export interface NeighborhoodData {
   floodwaterSubsidence: string;
   floodRelatedHazards: string[];
   notableInfo: string[];
+  familyDetails?: {
+    familyName: string;
+    members: string[];
+  }[];
   focalPerson: {
     name: string;
     avatar?: string;

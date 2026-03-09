@@ -7,6 +7,11 @@ import {
   updateNeighborhoodData,
 } from '@/services/neighborhood-service';
 import {
+  loadFamilyDetails,
+  saveFamilyDetails,
+  PersistedFamilyDetail,
+} from '@/services/neighborhood-persistence';
+import {
   EditedData,
   Family,
   FamilyMember,
@@ -81,6 +86,20 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
     },
   });
 
+  const mapPersistedFamiliesToEditable = (persistedFamilies: PersistedFamilyDetail[]): Family[] => {
+    return persistedFamilies.map((family, familyIdx) => ({
+      id: `family_${familyIdx}_${Date.now()}`,
+      name: family.familyName,
+      members: family.members.map((member, memberIdx) => ({
+        id: `member_${familyIdx}_${memberIdx}_${Date.now()}`,
+        name: member,
+        editing: false,
+      })),
+      expanded: false,
+      editing: false,
+    }));
+  };
+
   // Fetch neighborhood data from backend
   // For data privacy compliance, we ALWAYS fetch the user's OWN neighborhood
   // The neighborhoodId parameter is only used to verify it matches the user's own neighborhood
@@ -133,7 +152,14 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
           focalPerson: data.focalPerson.name
         }, null, 2));
         console.log('🔄 [use-neighborhood-data] ========================================');
-        setNeighborhoodData(data);
+
+        const persistedFamilyDetails = await loadFamilyDetails(data.id);
+        const editableFamilies = mapPersistedFamiliesToEditable(persistedFamilyDetails);
+
+        setNeighborhoodData({
+          ...data,
+          familyDetails: persistedFamilyDetails,
+        });
 
         // Initialize edited data with fetched data
         setEditedData({
@@ -148,7 +174,7 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
             ),
           })),
           notableInfo: data.notableInfo.join('\n'),
-          families: [] as Family[], // populated from backend when available
+          families: editableFamilies,
           alternativeFocalPerson: {
             firstName: data.alternativeFocalPerson.name.split(' ')[0] || '',
             lastName:
@@ -189,6 +215,7 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
     setIsEditMode(false);
     // Reset edited data to original values from fetched data
     if (neighborhoodData) {
+      const persistedFamilies = neighborhoodData.familyDetails || [];
       setEditedData({
         approxHouseholds: neighborhoodData.approxHouseholds,
         approxResidents: neighborhoodData.approxResidents,
@@ -201,7 +228,7 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
           ),
         })),
         notableInfo: neighborhoodData.notableInfo.join('\n'),
-        families: editedData.families, // preserve family edits on cancel of other fields
+        families: mapPersistedFamiliesToEditable(persistedFamilies),
         alternativeFocalPerson: {
           firstName:
             neighborhoodData.alternativeFocalPerson.name.split(' ')[0] || '',
@@ -240,6 +267,82 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
         alternativeFocalPerson: editedData.alternativeFocalPerson,
       };
 
+      const normalizedCurrentHazards = [...neighborhoodData.floodRelatedHazards]
+        .map((h) => h.split(' (')[0])
+        .sort();
+      const normalizedNextHazards = [...updatedDataParams.floodRelatedHazards].sort();
+      const normalizedCurrentNotableInfo = neighborhoodData.notableInfo
+        .map((line) => line.trim())
+        .filter(Boolean);
+      const normalizedNextNotableInfo = updatedDataParams.notableInfo
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+      const currentAltFullName = neighborhoodData.alternativeFocalPerson.name.trim();
+      const nextAltFullName = [
+        editedData.alternativeFocalPerson.firstName,
+        editedData.alternativeFocalPerson.lastName,
+      ]
+        .map((v) => v.trim())
+        .filter(Boolean)
+        .join(' ');
+
+      const hasChanges =
+        String(neighborhoodData.approxHouseholds) !==
+          String(updatedDataParams.approxHouseholds) ||
+        String(neighborhoodData.approxResidents) !==
+          String(updatedDataParams.approxResidents) ||
+        neighborhoodData.floodwaterSubsidence !==
+          updatedDataParams.floodwaterSubsidence ||
+        JSON.stringify(normalizedCurrentHazards) !==
+          JSON.stringify(normalizedNextHazards) ||
+        JSON.stringify(normalizedCurrentNotableInfo) !==
+          JSON.stringify(normalizedNextNotableInfo) ||
+        currentAltFullName !== nextAltFullName ||
+        neighborhoodData.alternativeFocalPerson.contactNo.trim() !==
+          editedData.alternativeFocalPerson.contactNo.trim() ||
+        neighborhoodData.alternativeFocalPerson.email.trim() !==
+          editedData.alternativeFocalPerson.email.trim();
+
+      // Serialize family details for persistence (backend-ready format)
+      const familyDetailsPayload: PersistedFamilyDetail[] = editedData.families
+        .filter((f) => f.name.trim())
+        .map((f) => ({
+          familyName: f.name.trim(),
+          members: f.members
+            .map((m) => m.name.trim())
+            .filter(Boolean),
+        }));
+
+      console.log('💾 [handleSubmitEdit] Family details to save:', JSON.stringify(familyDetailsPayload, null, 2));
+      console.log('ℹ️ [handleSubmitEdit] Backend integration note: familyDetails field exists in backend but is not yet wired to PUT /neighborhood/:id endpoint');
+      console.log('ℹ️ [handleSubmitEdit] When backend is ready, add familyDetails to updateNeighborhoodData params');
+
+      // Save family details to AsyncStorage (mock persistence for demonstration)
+      await saveFamilyDetails(neighborhoodData.id, familyDetailsPayload);
+
+      setNeighborhoodData((prev) =>
+        prev
+          ? {
+              ...prev,
+              familyDetails: familyDetailsPayload,
+            }
+          : prev,
+      );
+
+      // Avoid an unnecessary network request when nothing changed.
+      if (!hasChanges) {
+        console.log('✅ [handleSubmitEdit] No neighborhood field changes, exiting edit mode');
+        setIsEditMode(false);
+        setNotification({
+          visible: true,
+          type: 'success',
+          title: 'Update Successful',
+          message: 'Family details saved successfully.',
+        });
+        return;
+      }
+
       await updateNeighborhoodData(updatedDataParams);
 
       // Prepare alternative focal person name for local state
@@ -260,6 +363,7 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
         floodwaterSubsidence: updatedDataParams.floodwaterSubsidence,
         floodRelatedHazards: updatedDataParams.floodRelatedHazards,
         notableInfo: updatedDataParams.notableInfo,
+        familyDetails: familyDetailsPayload,
         alternativeFocalPerson: {
           name: alternativeFocalPersonName,
           contactNo: editedData.alternativeFocalPerson.contactNo,
@@ -344,6 +448,16 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
     }));
   };
 
+  const normalizeFamilyName = (value: string) => {
+    const trimmed = value.trim().replace(/\s+/g, ' ');
+    if (!trimmed) return '';
+
+    const baseName = trimmed.replace(/\s+family$/i, '').trim();
+    if (!baseName) return '';
+
+    return `${baseName} Family`;
+  };
+
   // ─── Family handlers ───────────────────────────────────────────
   const handleAddFamily = () => {
     const newFamily: Family = {
@@ -379,11 +493,20 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
   };
 
   const handleRenameFamilyCommit = (id: string, newName: string) => {
+    const normalizedName = normalizeFamilyName(newName);
     setEditedData((prev) => ({
       ...prev,
-      families: prev.families.map((f) =>
-        f.id === id ? { ...f, name: newName.trim(), editing: false } : f,
-      ),
+      families: prev.families
+        .map((f) =>
+          f.id === id
+            ? {
+                ...f,
+                name: normalizedName,
+                editing: false,
+              }
+            : f,
+        )
+        .filter((f) => f.id !== id || f.name.trim().length > 0),
     }));
   };
 

@@ -40,3 +40,68 @@ export const clearLastSelectedNeighborhood = async (): Promise<void> => {
     console.error('Failed to clear last selected neighborhood:', error);
   }
 };
+
+// ────────────────────────────────────────────────────────────────────
+// Family Details Mock Persistence
+// ────────────────────────────────────────────────────────────────────
+
+const FAMILY_DETAILS_KEY_PREFIX = 'neighborhood_family_details_';
+
+export interface PersistedFamilyDetail {
+  familyName: string;
+  members: string[];
+}
+
+/**
+ * Save family details to AsyncStorage (mock persistence for demonstration)
+ * Data structure matches backend expectation: { familyName: string, members: string[] }[]
+ */
+export const saveFamilyDetails = async (
+  neighborhoodId: string,
+  families: PersistedFamilyDetail[],
+): Promise<void> => {
+  try {
+    const key = `${FAMILY_DETAILS_KEY_PREFIX}${neighborhoodId}`;
+    console.log('💾 [mock-persistence] Saving family details for:', neighborhoodId);
+    console.log('💾 [mock-persistence] Data:', JSON.stringify(families, null, 2));
+    await AsyncStorage.setItem(key, JSON.stringify(families));
+    console.log('✅ [mock-persistence] Successfully saved family details');
+  } catch (error) {
+    console.error('❌ [mock-persistence] Failed to save family details:', error);
+  }
+};
+
+/**
+ * Load family details from AsyncStorage (mock persistence)
+ */
+export const loadFamilyDetails = async (
+  neighborhoodId: string,
+): Promise<PersistedFamilyDetail[]> => {
+  try {
+    const key = `${FAMILY_DETAILS_KEY_PREFIX}${neighborhoodId}`;
+    const data = await AsyncStorage.getItem(key);
+    if (data) {
+      const parsed = JSON.parse(data);
+      console.log('📂 [mock-persistence] Loaded family details:', parsed);
+      return parsed;
+    }
+    console.log('📂 [mock-persistence] No family details found');
+    return [];
+  } catch (error) {
+    console.error('❌ [mock-persistence] Failed to load family details:', error);
+    return [];
+  }
+};
+
+/**
+ * Clear family details from AsyncStorage
+ */
+export const clearFamilyDetails = async (neighborhoodId: string): Promise<void> => {
+  try {
+    const key = `${FAMILY_DETAILS_KEY_PREFIX}${neighborhoodId}`;
+    await AsyncStorage.removeItem(key);
+    console.log('🗑️ [mock-persistence] Cleared family details for:', neighborhoodId);
+  } catch (error) {
+    console.error('❌ [mock-persistence] Failed to clear family details:', error);
+  }
+};
