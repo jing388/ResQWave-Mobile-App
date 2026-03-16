@@ -25,13 +25,14 @@ export const BottomButtonContainer: React.FC<BottomButtonContainerProps> = ({
   bottomOffset = 10,
 }) => {
   const insets = useSafeAreaInsets();
+  const resolvedBottomInset = Math.max(insets.bottom, bottomOffset);
 
   const containerStyle: ViewStyle = {
     padding,
-    paddingBottom: Platform.OS === 'ios' ? insets.bottom + 20 : 20,
+    paddingBottom: insets.bottom + 20,
     position,
     ...(position === 'absolute' && {
-      bottom: bottomOffset,
+      bottom: resolvedBottomInset,
       left: 0,
       right: 0,
     }),

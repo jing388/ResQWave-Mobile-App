@@ -7,9 +7,9 @@ import { useNeighborhoodData } from '@/hooks/use-neighborhood-data';
 import { useEditMode } from '@/contexts/edit-mode-context';
 import { formatDate } from '@/utils/formatters';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, StatusBar, Text, TouchableOpacity, View, Alert } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, StatusBar, Text, TouchableOpacity, View, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Radio, Edit, ArrowLeft } from 'lucide-react-native';
+import { Radio, Edit, ArrowLeft, ExternalLink } from 'lucide-react-native';
 
 export default function AboutNeighborhoodScreen() {
   const { setIsEditMode } = useEditMode();
@@ -42,6 +42,42 @@ export default function AboutNeighborhoodScreen() {
     handleRenameMemberCommit,
     isSubmitting,
   } = useNeighborhoodData(null);
+
+  const hasCoordinates =
+    Number.isFinite(neighborhoodData?.coordinates?.latitude) &&
+    Number.isFinite(neighborhoodData?.coordinates?.longitude);
+
+  const formattedCoordinates = hasCoordinates && neighborhoodData
+    ? `${neighborhoodData.coordinates.latitude.toFixed(6)}, ${neighborhoodData.coordinates.longitude.toFixed(6)}`
+    : null;
+
+  const handleOpenCoordinates = async () => {
+    if (!hasCoordinates || !neighborhoodData) return;
+
+    const mapsUrl = `https://maps.google.com/?q=${neighborhoodData.coordinates.latitude},${neighborhoodData.coordinates.longitude}`;
+
+    Alert.alert(
+      'Open in Google Maps?',
+      'This will open your neighborhood coordinates in Google Maps.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Open Maps',
+          onPress: async () => {
+            const canOpen = await Linking.canOpenURL(mapsUrl);
+
+            if (!canOpen) {
+              Alert.alert('Unable to open maps', 'Google Maps could not be opened on this device.');
+              return;
+            }
+
+            await Linking.openURL(mapsUrl);
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
 
   // Sync edit mode with global context
   useEffect(() => {
@@ -210,6 +246,18 @@ export default function AboutNeighborhoodScreen() {
                 <Text className="text-white text-2xl font-geist-semibold">
                   {neighborhoodData.name}
                 </Text>
+                {formattedCoordinates ? (
+                  <TouchableOpacity
+                    onPress={handleOpenCoordinates}
+                    activeOpacity={0.7}
+                    style={{ marginTop: 4, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                  >
+                    <Text className="text-blue-400 text-sm font-geist-medium">
+                      Coordinates: {formattedCoordinates}
+                    </Text>
+                    <ExternalLink size={12} color="#60A5FA" />
+                  </TouchableOpacity>
+                ) : null}
               </View>
             </View>
             <Text className="text-gray-400 text-sm font-geist-regular mb-4">

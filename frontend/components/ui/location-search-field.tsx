@@ -1,6 +1,6 @@
 import { ChevronDown, MapPin, Search, X } from 'lucide-react-native';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Text, TouchableOpacity, View, TextInput, Pressable, Keyboard, Animated } from 'react-native';
+import { Text, TouchableOpacity, View, TextInput, Pressable, Keyboard, Animated, useWindowDimensions } from 'react-native';
 import { FlatList } from 'react-native-gesture-handler';
 
 interface LocationItem {
@@ -9,6 +9,7 @@ interface LocationItem {
   address: string;
   latitude: number;
   longitude: number;
+  type?: 'own' | 'other';
 }
 
 interface SearchFieldProps {
@@ -26,14 +27,30 @@ export function SearchField({
   className = '',
   onDropdownOpen,
 }: SearchFieldProps) {
+  const { height: windowHeight } = useWindowDimensions();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<LocationItem | null>(
     null,
   );
   const [searchQuery, setSearchQuery] = useState('');
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [dropdownTop, setDropdownTop] = useState(0);
   const textInputRef = useRef<TextInput>(null);
+  const containerRef = useRef<View>(null);
   const animatedScale = useRef(new Animated.Value(1)).current;
   const animatedOpacity = useRef(new Animated.Value(1)).current;
+
+  const maxDropdownHeight = useMemo(() => {
+    // Keep the list above the keyboard and still allow scrolling.
+    const available = windowHeight - keyboardHeight - dropdownTop - 12;
+    return Math.max(140, Math.min(360, available));
+  }, [dropdownTop, keyboardHeight, windowHeight]);
+
+  const updateDropdownTop = () => {
+    containerRef.current?.measureInWindow((_x, y, _w, h) => {
+      setDropdownTop(y + h + 4);
+    });
+  };
 
   // Animate when search bar is tapped
   useEffect(() => {
@@ -67,6 +84,33 @@ export function SearchField({
       ]).start();
     }
   }, [isOpen, animatedScale, animatedOpacity]);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardDidShow', (event) => {
+      setKeyboardHeight(event.endCoordinates.height);
+      if (isOpen) {
+        requestAnimationFrame(updateDropdownTop);
+      }
+    });
+
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0);
+      if (isOpen) {
+        requestAnimationFrame(updateDropdownTop);
+      }
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
+      requestAnimationFrame(updateDropdownTop);
+    }
+  }, [isOpen, windowHeight]);
 
   // Filter locations based on search query
   const filteredLocations = useMemo(() => {
@@ -133,7 +177,7 @@ export function SearchField({
   const displayTextColor = selectedLocation && !isOpen && !searchQuery ? 'text-white' : 'text-gray-400';
 
   return (
-    <View className="flex-1 mr-3 relative">
+    <View ref={containerRef} className="flex-1 mr-3 relative" onLayout={updateDropdownTop}>
       {/* Overlay to dismiss dropdown when tapping outside - must be rendered first */}
       {isOpen && (
         <Pressable
@@ -219,7 +263,7 @@ export function SearchField({
         <View
           className="absolute top-full left-0 right-0 bg-default-black rounded-xl border border-gray-600 mt-1"
           style={{
-            maxHeight: 360,
+            maxHeight: maxDropdownHeight,
             elevation: 50,
             zIndex: 50,
             shadowColor: '#000',
@@ -244,25 +288,34 @@ export function SearchField({
             nestedScrollEnabled={true}
             indicatorStyle="white"
             renderItem={({ item: location, index }) => (
+              (() => {
+                const isOwnNeighborhood = location.type === 'own';
+                const isSelected = selectedLocation?.id === location.id;
+                const iconBgClass = isOwnNeighborhood ? 'bg-emerald-500/20' : 'bg-blue-500/20';
+                const iconColor = isOwnNeighborhood ? '#34D399' : '#60A5FA';
+                const rowSelectedClass = isSelected
+                  ? (isOwnNeighborhood ? 'bg-emerald-500/15' : 'bg-blue-500/15')
+                  : '';
+                const titleClass = isSelected
+                  ? (isOwnNeighborhood ? 'text-emerald-400' : 'text-blue-400')
+                  : (isOwnNeighborhood ? 'text-emerald-300' : 'text-white');
+
+                return (
               <TouchableOpacity
                 className={`px-4 py-2.5 flex-row items-center gap-3 ${
                   index !== filteredLocations.length - 1
                     ? 'border-b border-gray-700'
                     : ''
-                } ${selectedLocation?.id === location.id ? 'bg-gray-700/50' : ''}`}
+                } ${rowSelectedClass}`}
                 onPress={() => handleLocationSelect(location)}
                 activeOpacity={0.6}
               >
-                <View className="bg-blue-500/20 rounded-lg p-1.5">
-                  <MapPin size={12} color="#60A5FA" />
+                <View className={`${iconBgClass} rounded-lg p-1.5`}>
+                  <MapPin size={12} color={iconColor} />
                 </View>
                 <View className="flex-1">
                   <Text
-                    className={`text-sm font-geist-semibold ${
-                      selectedLocation?.id === location.id
-                        ? 'text-blue-400'
-                        : 'text-white'
-                    }`}
+                    className={`text-sm font-geist-semibold ${titleClass}`}
                   >
                     {location.title}
                   </Text>
@@ -271,6 +324,8 @@ export function SearchField({
                   </Text>
                 </View>
               </TouchableOpacity>
+                );
+              })()
             )}
           />
         </View>

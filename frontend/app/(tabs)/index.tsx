@@ -5,9 +5,12 @@ import MapStyleSheet, { MapStyle } from '@/components/main/map-style-sheet';
 import { ChatbotButton } from '@/components/main/chatbot-button';
 import { LocationButton } from '@/components/main/your-location-button';
 import { Avatar } from '@/components/ui/avatar';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SearchField } from '@/components/ui/location-search-field';
 import { ThemedView } from '@/components/ui/themed-view';
 import { useNeighborhoods } from '@/hooks/use-neighborhoods';
+import { registerMapStyleSheetCloser } from '@/lib/map-style-sheet-controller';
+import { getProfile, prepareProfileWithLocalImage } from '@/services/user-service';
 import { MarkerData } from '@/types/neighborhood';
 import {
   saveLastSelectedNeighborhood,
@@ -15,7 +18,7 @@ import {
 } from '@/services/neighborhood-persistence';
 import type { LocationObject } from 'expo-location';
 import * as Location from 'expo-location';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -28,13 +31,14 @@ import {
 } from 'react-native';
 import MapView, { Circle, Marker, Region, UrlTile } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BottomSheetModalProvider, BottomSheetModal } from '@gorhom/bottom-sheet';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 
 const { width, height } = Dimensions.get('window');
 
 const ASPECT_RATIO = width / height;
 const LATITUDE_DELTA = 0.005;
 const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO;
+const TOKEN_KEY = '@auth_token';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -71,6 +75,7 @@ export default function HomeScreen() {
   const [sheetVisible, setSheetVisible] = useState(false);
   const [activeMarkerId, setActiveMarkerId] = useState<string | null>(null);
   const [currentLocationSheetVisible, setCurrentLocationSheetVisible] = useState(false);
+  const [mapStyleSheetVisible, setMapStyleSheetVisible] = useState(false);
   const [currentMapStyle, setCurrentMapStyle] = useState<MapStyle>({
     id: 'default',
     name: 'Default',
@@ -78,7 +83,78 @@ export default function HomeScreen() {
     description: 'Standard street map view'
   });
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const mapStyleSheetRef = useRef<BottomSheetModal | null>(null);
+  const [profilePhotoUri, setProfilePhotoUri] = useState<string | undefined>();
+  const isMapStyleSheetOpenRef = useRef(false);
+  const pendingNavigationActionRef = useRef<(() => void) | null>(null);
+
+  const loadProfileAvatar = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem(TOKEN_KEY);
+      const profile = await getProfile();
+      const profileWithImage = await prepareProfileWithLocalImage(profile, token);
+      setProfilePhotoUri(profileWithImage.photo);
+    } catch (error) {
+      console.warn('Failed to load map profile avatar:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadProfileAvatar().catch(() => {});
+  }, [loadProfileAvatar]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadProfileAvatar().catch(() => {});
+    }, [loadProfileAvatar])
+  );
+
+  const runPendingNavigationAction = useCallback(() => {
+    const pendingAction = pendingNavigationActionRef.current;
+    pendingNavigationActionRef.current = null;
+    pendingAction?.();
+  }, []);
+
+  const handleMapStyleSheetChange = useCallback(
+    (index: number) => {
+      isMapStyleSheetOpenRef.current = index >= 0;
+
+      if (index === -1) {
+        setMapStyleSheetVisible(false);
+        runPendingNavigationAction();
+      }
+    },
+    [runPendingNavigationAction]
+  );
+
+  const handleMapStyleSheetDismiss = useCallback(() => {
+    isMapStyleSheetOpenRef.current = false;
+    setMapStyleSheetVisible(false);
+  }, []);
+
+  const closeMapStyleSheet = useCallback((afterClose?: () => void) => {
+    if (isMapStyleSheetOpenRef.current || mapStyleSheetVisible) {
+      pendingNavigationActionRef.current = afterClose ?? null;
+      setMapStyleSheetVisible(false);
+      return true;
+    }
+
+    if (sheetVisible) {
+      pendingNavigationActionRef.current = afterClose ?? null;
+      setSheetVisible(false);
+      return true;
+    }
+
+    if (currentLocationSheetVisible) {
+      pendingNavigationActionRef.current = afterClose ?? null;
+      setCurrentLocationSheetVisible(false);
+      return true;
+    }
+
+    afterClose?.();
+    return false;
+  }, [currentLocationSheetVisible, mapStyleSheetVisible, sheetVisible]);
+
+  useEffect(() => registerMapStyleSheetCloser(closeMapStyleSheet), [closeMapStyleSheet]);
 
   // (native user location marker used; custom marker rendering removed)
 
@@ -90,6 +166,7 @@ export default function HomeScreen() {
       address: marker.address,
       latitude: marker.latitude,
       longitude: marker.longitude,
+      type: marker.type,
     }));
     console.log('📍 Total markers:', markers.length);
     console.log('📍 Pinned locations for search:', locations.length);
@@ -155,6 +232,12 @@ export default function HomeScreen() {
   useEffect(() => {
     if (freshLogin && ownNeighborhood && !hasAnimatedRef.current) {
       hasAnimatedRef.current = true;
+
+      // Fresh-login landing should show map centered on own neighborhood,
+      // but without any marker pre-selected or bottom sheet opened.
+      setSheetVisible(false);
+      setSelectedMarker(null);
+      setActiveMarkerId(null);
       
       // Start from a wider view, then zoom in to own neighborhood
       const zoomInSequence = async () => {
@@ -171,13 +254,6 @@ export default function HomeScreen() {
           },
           1500 // 1.5 second animation
         );
-        
-        // Set active marker and open bottom sheet after animation
-        setTimeout(() => {
-          setActiveMarkerId(ownNeighborhood.id);
-          setSelectedMarker(ownNeighborhood);
-          setSheetVisible(true);
-        }, 1500);
       };
       
       zoomInSequence();
@@ -230,6 +306,7 @@ export default function HomeScreen() {
     console.log('📍 [handleMarkerPress] Marker pressed:', marker.neighborhoodID);
     console.log('📍 [handleMarkerPress] Marker TYPE:', marker.type);
     console.log('📍 [handleMarkerPress] Full marker:', JSON.stringify(marker, null, 2));
+    closeMapStyleSheet();
     
     setActiveMarkerId(marker.id);
 
@@ -245,25 +322,35 @@ export default function HomeScreen() {
 
     setSelectedMarker(marker);
     setSheetVisible(true);
-  }, []);
+  }, [closeMapStyleSheet]);
 
+  // Full teardown — called only AFTER the close animation finishes (via onClose)
   const hideBottomSheet = useCallback(() => {
     setSheetVisible(false);
     setSelectedMarker(null);
     setActiveMarkerId(null);
+    runPendingNavigationAction();
+  }, [runPendingNavigationAction]);
+
+  // Lightweight dismiss — only hides the sheet so the spring animation runs;
+  // markerData is preserved until the sheet reports index === -1 via onClose.
+  const dismissSheet = useCallback(() => {
+    setSheetVisible(false);
   }, []);
 
   const handleCurrentLocationPress = useCallback(() => {
     console.log('📍 Current location marker pressed');
+    closeMapStyleSheet();
     // Close neighborhood sheet if open
     hideBottomSheet();
     // Open current location sheet
     setCurrentLocationSheetVisible(true);
-  }, [hideBottomSheet]);
+  }, [closeMapStyleSheet, hideBottomSheet]);
 
   const hideCurrentLocationSheet = useCallback(() => {
     setCurrentLocationSheetVisible(false);
-  }, []);
+    runPendingNavigationAction();
+  }, [runPendingNavigationAction]);
 
   const handleMoreInfo = useCallback(async (markerData: MarkerData) => {
     console.log('🔍 [index] ========================================');
@@ -292,6 +379,8 @@ export default function HomeScreen() {
   }, [hideBottomSheet]);
 
   const handleLocationSelect = (location: any) => {
+    closeMapStyleSheet();
+
     // Find the marker from our markers array
     const marker = markers.find((m) => m.id === location.id);
     if (marker) {
@@ -304,7 +393,7 @@ export default function HomeScreen() {
   };
 
   const handleLayersPress = () => {
-    mapStyleSheetRef.current?.present();
+    setMapStyleSheetVisible(true);
   };
 
 
@@ -336,6 +425,9 @@ export default function HomeScreen() {
           zoomEnabled={!isDropdownOpen}
           pitchEnabled={!isDropdownOpen}
           rotateEnabled={!isDropdownOpen}
+          onPress={() => {
+            closeMapStyleSheet();
+          }}
         >
           {/* Custom Map Tiles for terrain style only */}
           {currentMapStyle.id === 'terrain' && (
@@ -434,15 +526,25 @@ export default function HomeScreen() {
                 setIsDropdownOpen(isOpen);
                 // Close InfoSheet when search dropdown opens
                 if (isOpen && sheetVisible) {
-                  hideBottomSheet();
+                  dismissSheet();
+                }
+
+                if (isOpen) {
+                  closeMapStyleSheet();
                 }
               }}
             />
             <Avatar
               size="md"
-              imageSource={require('@/assets/images/sample-profile-picture.jpg')}
+              imageSource={
+                profilePhotoUri
+                  ? { uri: profilePhotoUri }
+                  : require('@/assets/images/sample-profile-picture.jpg')
+              }
               onPress={() => {
-                router.push('/profile');
+                closeMapStyleSheet(() => {
+                  router.push('/profile');
+                });
               }}
             />
           </View>
@@ -466,6 +568,7 @@ export default function HomeScreen() {
         <InfoSheet
           visible={sheetVisible}
           markerData={selectedMarker}
+          isOwnNeighborhood={selectedMarker?.type === 'own'}
           onClose={hideBottomSheet}
           onMoreInfo={handleMoreInfo}
         />
@@ -480,9 +583,11 @@ export default function HomeScreen() {
 
         {/* Map Style Bottom Sheet */}
         <MapStyleSheet
-          bottomSheetRef={mapStyleSheetRef}
+          visible={mapStyleSheetVisible}
+          onClose={handleMapStyleSheetDismiss}
           onStyleSelect={handleMapStyleSelect}
           currentStyleId={currentMapStyle.id}
+          onSheetChange={handleMapStyleSheetChange}
         />
       </ThemedView>
     </BottomSheetModalProvider>

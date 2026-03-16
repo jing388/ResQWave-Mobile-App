@@ -1,8 +1,7 @@
 import { HapticTab } from '@/components/ui/haptic-tab';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useEditMode } from '@/contexts/edit-mode-context';
-import { Tabs } from 'expo-router';
+import { closeMapStyleSheetIfOpen } from '@/lib/map-style-sheet-controller';
+import { router, Tabs } from 'expo-router';
 import { FileText, Home, Map } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Animated, Dimensions, Platform } from 'react-native';
@@ -54,20 +53,18 @@ const TabBarLabel = React.memo(({
 TabBarLabel.displayName = 'TabBarLabel';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-  const tintColor = Colors[colorScheme ?? 'light'].tint;
   const { isEditMode } = useEditMode();
   const { bottom: safeBottom } = useSafeAreaInsets();
+  const resolvedBottomInset = Platform.OS === 'android' ? Math.max(safeBottom, 12) : safeBottom;
   const [activeTab, setActiveTab] = useState(0);
   const slideAnim = useRef(new Animated.Value(0)).current;
 
   // Tab bar composed height: fixed content area + system nav inset
   const TAB_CONTENT_H = 50;
-  // always add a little extra bottom padding so the bar lives above
-  // any system navigation controls; safeBottom is usually 0 on Android
-  // when the screen isn't inset-aware, so we add 6px baseline.
+  // Keep a small baseline inset on Android so the custom bar still clears
+  // transient system UI while edge-to-edge settles after launch/resume.
   const EXTRA_BOTTOM = 6;
-  const tabBarHeight = TAB_CONTENT_H + safeBottom + EXTRA_BOTTOM;
+  const tabBarHeight = TAB_CONTENT_H + resolvedBottomInset + EXTRA_BOTTOM;
 
   useEffect(() => {
     Animated.spring(slideAnim, {
@@ -77,6 +74,12 @@ export default function TabLayout() {
       stiffness: 200,
     }).start();
   }, [activeTab, slideAnim]);
+
+  const navigateWithDrawerClose = (pathname: '/(tabs)' | '/(tabs)/about-neighborhood' | '/(tabs)/reports') => {
+    closeMapStyleSheetIfOpen(() => {
+      router.navigate(pathname);
+    });
+  };
 
   return (
     <View style={{ flex: 1 }}>
@@ -92,8 +95,7 @@ export default function TabLayout() {
           tabBarActiveIndicatorStyle: { backgroundColor: 'transparent' },
           tabBarStyle: {
             paddingTop: 8,
-            // combine safe inset with a small constant to guarantee separation
-            paddingBottom: safeBottom + EXTRA_BOTTOM,
+            paddingBottom: resolvedBottomInset + EXTRA_BOTTOM,
             height: tabBarHeight,
             backgroundColor: '#171717',
             borderTopWidth: 0,
@@ -127,7 +129,11 @@ export default function TabLayout() {
             tabPress: (e) => {
               if (isEditMode) {
                 e.preventDefault();
+                return;
               }
+
+              e.preventDefault();
+              navigateWithDrawerClose('/(tabs)');
             },
           }}
           options={{
@@ -142,6 +148,12 @@ export default function TabLayout() {
         />
         <Tabs.Screen
           name="about-neighborhood"
+          listeners={{
+            tabPress: (e) => {
+              e.preventDefault();
+              navigateWithDrawerClose('/(tabs)/about-neighborhood');
+            },
+          }}
           options={{
             title: 'Info',
             tabBarIcon: ({ focused }) => (
@@ -158,7 +170,11 @@ export default function TabLayout() {
             tabPress: (e) => {
               if (isEditMode) {
                 e.preventDefault();
+                return;
               }
+
+              e.preventDefault();
+              navigateWithDrawerClose('/(tabs)/reports');
             },
           }}
           options={{
@@ -175,7 +191,7 @@ export default function TabLayout() {
       <Animated.View
         style={{
           position: 'absolute',
-          bottom: safeBottom + TAB_CONTENT_H,
+          bottom: resolvedBottomInset + TAB_CONTENT_H,
           left: 0,
           width: tabWidth,
           height: 3,

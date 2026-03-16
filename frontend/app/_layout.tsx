@@ -9,6 +9,7 @@ import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 import '../global.css';
 
@@ -33,6 +34,7 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const router = useRouter();
   const [isAppReady, setIsAppReady] = useState(false);
+  const [minTimeElapsed, setMinTimeElapsed] = useState(false);
 
   const [fontsLoaded, fontError] = useFonts({
     'geist-thin': Geist_100Thin,
@@ -61,13 +63,11 @@ export default function RootLayout() {
     });
   }, [router]);
 
-  // Track minimum loading time (3 seconds)
-  const [minTimeElapsed, setMinTimeElapsed] = useState(false);
-
   useEffect(() => {
     const timer = setTimeout(() => {
       setMinTimeElapsed(true);
     }, 3000);
+
     return () => clearTimeout(timer);
   }, []);
 
@@ -83,132 +83,133 @@ export default function RootLayout() {
       console.log('✅ app ready with fonts and fonts loaded');
       setIsAppReady(true);
     }
-  }, [fontsLoaded, fontError, minTimeElapsed])
+  }, [fontsLoaded, fontError, minTimeElapsed]);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <EditModeProvider>
-        <BottomSheetModalProvider>
-          <ThemeProvider
-            value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}
-          >
-            <WithSplashScreen isAppReady={isAppReady}>
-            <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                animation: 'fade_from_bottom',
-                animationDuration: 200,
-                animationTypeForReplace: 'push',
-                gestureEnabled: true,
-                gestureDirection: 'horizontal',
-              }}
+    <SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <EditModeProvider>
+          <BottomSheetModalProvider>
+            <ThemeProvider
+              value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}
             >
-              <Stack.Screen
-                name="index"
-                options={{
-                  headerShown: false,
-                  animation: 'fade',
-                  animationDuration: 150,
-                }}
-              />
-              <Stack.Screen
-                name="(tabs)"
-                options={{
-                  headerShown: false,
-                  animation: 'fade',
-                  animationDuration: 200,
-                }}
-              />
-              <Stack.Screen
-                name="login/index"
-                options={{
-                  headerShown: false,
-                  animation: 'none',
-                }}
-              />
-              <Stack.Screen
-                name="login/forgot-password/find-your-account"
-                options={{
-                  headerShown: false,
-                  animation: 'slide_from_right',
-                }}
-              />
-              <Stack.Screen
-                name="login/forgot-password/enter-code-sent"
-                options={{
-                  headerShown: false,
-                  animation: 'slide_from_right',
-                }}
-              />
-              <Stack.Screen
-                name="login/forgot-password/reset-password"
-                options={{
-                  headerShown: false,
-                  animation: 'slide_from_right',
-                }}
-              />
-              <Stack.Screen
-                name="verification/index"
-                options={{
-                  headerShown: false,
-                  animation: 'slide_from_right',
-                }}
-              />
-              <Stack.Screen
-                name="profile/index"
-                options={{
-                  headerShown: false,
-                  presentation: 'transparentModal',
-                  animation: 'slide_from_right',
-                }}
-              />
-              <Stack.Screen
-                name="profile/password"
-                options={{
-                  headerShown: false,
-                  presentation: 'transparentModal',
-                  animation: 'slide_from_right',
-                }}
-              />
-              <Stack.Screen
-                name="profile/first-and-last-name"
-                options={{
-                  headerShown: false,
-                  presentation: 'transparentModal',
-                  animation: 'slide_from_right',
-                }}
-              />
-              <Stack.Screen
-                name="profile/phone-number"
-                options={{
-                  headerShown: false,
-                  presentation: 'transparentModal',
-                  animation: 'slide_from_right',
-                }}
-              />
-              <Stack.Screen
-                name="profile/email"
-                options={{
-                  headerShown: false,
-                  presentation: 'transparentModal',
-                  animation: 'slide_from_right',
-                }}
-              />
-              <Stack.Screen
-                name="chatbot/index"
-                options={{
-                  headerShown: false,
-                  presentation: 'transparentModal',
-                  animation: 'slide_from_right',
-                }}
-              />
-            </Stack>
-            <StatusBar style="light" />
-            </WithSplashScreen>
-          </ThemeProvider>
-        </BottomSheetModalProvider>
-      </EditModeProvider>
-    </GestureHandlerRootView>
+              <WithSplashScreen isAppReady={isAppReady}>
+                <StatusBar style="light" />
+                <Stack
+                  screenOptions={{
+                    headerShown: false,
+                    animation: 'fade_from_bottom',
+                    animationDuration: 200,
+                    animationTypeForReplace: 'push',
+                    gestureEnabled: true,
+                    gestureDirection: 'horizontal',
+                  }}
+                >
+                  <Stack.Screen
+                    name="index"
+                    options={{
+                      headerShown: false,
+                      animation: 'fade',
+                      animationDuration: 150,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="(tabs)"
+                    options={{
+                      headerShown: false,
+                      animation: 'fade',
+                      animationDuration: 200,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="login/index"
+                    options={{
+                      headerShown: false,
+                      animation: 'none',
+                    }}
+                  />
+                  <Stack.Screen
+                    name="login/forgot-password/find-your-account"
+                    options={{
+                      headerShown: false,
+                      animation: 'slide_from_right',
+                    }}
+                  />
+                  <Stack.Screen
+                    name="login/forgot-password/enter-code-sent"
+                    options={{
+                      headerShown: false,
+                      animation: 'slide_from_right',
+                    }}
+                  />
+                  <Stack.Screen
+                    name="login/forgot-password/reset-password"
+                    options={{
+                      headerShown: false,
+                      animation: 'slide_from_right',
+                    }}
+                  />
+                  <Stack.Screen
+                    name="verification/index"
+                    options={{
+                      headerShown: false,
+                      animation: 'slide_from_right',
+                    }}
+                  />
+                  <Stack.Screen
+                    name="profile/index"
+                    options={{
+                      headerShown: false,
+                      presentation: 'transparentModal',
+                      animation: 'slide_from_right',
+                    }}
+                  />
+                  <Stack.Screen
+                    name="profile/password"
+                    options={{
+                      headerShown: false,
+                      presentation: 'transparentModal',
+                      animation: 'slide_from_right',
+                    }}
+                  />
+                  <Stack.Screen
+                    name="profile/first-and-last-name"
+                    options={{
+                      headerShown: false,
+                      presentation: 'transparentModal',
+                      animation: 'slide_from_right',
+                    }}
+                  />
+                  <Stack.Screen
+                    name="profile/phone-number"
+                    options={{
+                      headerShown: false,
+                      presentation: 'transparentModal',
+                      animation: 'slide_from_right',
+                    }}
+                  />
+                  <Stack.Screen
+                    name="profile/email"
+                    options={{
+                      headerShown: false,
+                      presentation: 'transparentModal',
+                      animation: 'slide_from_right',
+                    }}
+                  />
+                  <Stack.Screen
+                    name="chatbot/index"
+                    options={{
+                      headerShown: false,
+                      presentation: 'transparentModal',
+                      animation: 'slide_from_right',
+                    }}
+                  />
+                </Stack>
+              </WithSplashScreen>
+            </ThemeProvider>
+          </BottomSheetModalProvider>
+        </EditModeProvider>
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
   );
 }

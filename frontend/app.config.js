@@ -23,10 +23,10 @@ module.exports = {
     package: 'com.anonymous.ResQWaveMobile',
     softwareKeyboardLayoutMode: 'pan',
     navigationBar: {
-      visible: false
+      visible: true
     },
     statusBar: {
-      hidden: true,
+      hidden: false,
       translucent: true
     }
   },

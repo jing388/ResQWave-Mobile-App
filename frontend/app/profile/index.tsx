@@ -1,5 +1,5 @@
 import ChangeProfileSheet from '@/components/profile/change-profile-sheet';
-import { Avatar } from '@/components/ui/avatar';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   BottomSheetModal,
   BottomSheetModalProvider,
@@ -13,21 +13,38 @@ import {
   ChevronRight,
   Lock,
   Logs,
+  X,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react-native';
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import {
   Alert,
+  Dimensions,
+  Image,
+  Modal,
   Platform,
+  Pressable,
   RefreshControl,
   ScrollView,
   StatusBar,
   Text,
   TouchableOpacity,
   View,
+  StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import Animated, { cancelAnimation, useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getProfile, updateProfilePicture, UserProfile } from '@/services/user-service';
-import { API_BASE_URL } from '@/lib/api-client';
+import { getProfile, updateProfilePicture, UserProfile, prepareProfileWithLocalImage } from '@/services/user-service';
+
+const TOKEN_KEY = '@auth_token';
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 5;
+const DOUBLE_TAP_ZOOM = 2.5;
+const BUTTON_ZOOM_STEP = 0.4;
+const ZOOM_ANIMATION_MS = 160;
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -38,11 +55,74 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [authToken, setAuthToken] = useState<string | null>(null);
+  const [isImageViewerVisible, setIsImageViewerVisible] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const signOutProgress = useSharedValue(1);
+  const { width } = Dimensions.get('window');
+  const transition = useSharedValue(1);
+
+  const signOutStyle = useAnimatedStyle(() => ({
+    opacity: signOutProgress.value,
+  }));
+
+  const animatedLayoutStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: transition.value * width }],
+    opacity: 1 - transition.value * 0.2,
+  }));
+
+  useEffect(() => {
+    transition.value = withTiming(0, { duration: 250 });
+  }, []);
+
+
+  // Reanimated shared values for zoom
+  const scale = useSharedValue(1);
+  const savedScale = useSharedValue(1);
+
+  const pinchGesture = Gesture.Pinch()
+    .enabled(isImageViewerVisible)
+    .onUpdate((e) => {
+      scale.value = Math.min(Math.max(savedScale.value * e.scale, MIN_ZOOM), MAX_ZOOM);
+    })
+    .onEnd(() => {
+      if (scale.value < MIN_ZOOM) {
+        scale.value = withTiming(MIN_ZOOM, { duration: ZOOM_ANIMATION_MS });
+        savedScale.value = MIN_ZOOM;
+      } else if (scale.value > MAX_ZOOM) {
+        scale.value = withTiming(MAX_ZOOM, { duration: ZOOM_ANIMATION_MS });
+        savedScale.value = MAX_ZOOM;
+      } else {
+        savedScale.value = scale.value;
+      }
+    });
+
+  const doubleTapGesture = Gesture.Tap()
+    .numberOfTaps(2)
+    .enabled(isImageViewerVisible)
+    .onEnd(() => {
+      if (scale.value > MIN_ZOOM) {
+        scale.value = withTiming(MIN_ZOOM, { duration: ZOOM_ANIMATION_MS });
+        savedScale.value = MIN_ZOOM;
+      } else {
+        scale.value = withTiming(DOUBLE_TAP_ZOOM, { duration: ZOOM_ANIMATION_MS });
+        savedScale.value = DOUBLE_TAP_ZOOM;
+      }
+    });
+
+  const composed = Gesture.Simultaneous(pinchGesture, doubleTapGesture);
+
+  const animatedImageStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
 
   // Load user profile on mount
   useEffect(() => {
     const initializeProfile = async () => {
-      await loadUserProfile();
+      const token = await AsyncStorage.getItem(TOKEN_KEY);
+      setAuthToken(token);
+      await loadUserProfile(false, token);
       await requestPermissions();
     };
     
@@ -72,12 +152,18 @@ export default function ProfileScreen() {
     }
   };
 
-  const loadUserProfile = async (forceRefresh: boolean = false) => {
+  const loadUserProfile = async (forceRefresh: boolean = false, tokenOverride?: string | null) => {
     try {
       setLoading(true);
       // Pass forceRefresh option to bypass cache when needed
       const profile = await getProfile({ forceRefresh });
-      setUserData(profile);
+      const effectiveToken = tokenOverride ?? authToken;
+      
+      // Prepare profile with local image caching
+      const profileWithImage = await prepareProfileWithLocalImage(profile, effectiveToken);
+      setUserData(profileWithImage);
+      
+      console.log('✅ Profile loaded with image:', profileWithImage.photo?.substring(0, 50));
     } catch (error) {
       console.error('Failed to load user profile:', error);
       // Keep mock data as fallback
@@ -106,12 +192,45 @@ export default function ProfileScreen() {
     }
   }, []);
 
+  const closeWithAnimation = () => {
+    if (isClosing) return;
+    setIsClosing(true);
+
+    transition.value = withTiming(1, { duration: 220 }, (finished) => {
+      if (finished) {
+        runOnJS(router.back)();
+      }
+    });
+  };
+
   const handleGoBack = () => {
-    router.back();
+    closeWithAnimation();
   };
 
   const handleAvatarPress = () => {
+    if (!userData?.photo) return;
+    cancelAnimation(scale);
+    scale.value = 1;
+    savedScale.value = 1;
+    setIsImageViewerVisible(true);
+  };
+
+  const handleCameraButtonPress = () => {
     bottomSheetRef.current?.present();
+  };
+
+  const handleCloseImageViewer = () => {
+    setIsImageViewerVisible(false);
+    cancelAnimation(scale);
+    scale.value = 1;
+    savedScale.value = 1;
+  };
+
+  const handleZoom = (delta: number) => {
+    cancelAnimation(scale);
+    const next = Math.min(Math.max(savedScale.value + delta, MIN_ZOOM), MAX_ZOOM);
+    scale.value = withTiming(next, { duration: ZOOM_ANIMATION_MS });
+    savedScale.value = next;
   };
 
   const handleCloseSheet = () => {
@@ -133,7 +252,7 @@ export default function ProfileScreen() {
       }
 
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
@@ -143,7 +262,9 @@ export default function ProfileScreen() {
         const asset = result.assets[0];
         if (asset.uri) {
           const updatedUser = await updateProfilePicture(asset.uri);
-          setUserData(updatedUser);
+          const latestToken = authToken ?? await AsyncStorage.getItem(TOKEN_KEY);
+          const updatedUserWithLocalImage = await prepareProfileWithLocalImage(updatedUser, latestToken);
+          setUserData(updatedUserWithLocalImage);
           Alert.alert('Success', 'Profile picture updated successfully!');
         } else {
           Alert.alert('Error', 'Unable to get image URI. Please try again.');
@@ -174,7 +295,7 @@ export default function ProfileScreen() {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
@@ -184,7 +305,9 @@ export default function ProfileScreen() {
         const asset = result.assets[0];
         if (asset.uri) {
           const updatedUser = await updateProfilePicture(asset.uri);
-          setUserData(updatedUser);
+          const latestToken = authToken ?? await AsyncStorage.getItem(TOKEN_KEY);
+          const updatedUserWithLocalImage = await prepareProfileWithLocalImage(updatedUser, latestToken);
+          setUserData(updatedUserWithLocalImage);
           Alert.alert('Success', 'Profile picture updated successfully!');
         } else {
           Alert.alert('Error', 'Unable to get image URI. Please try again.');
@@ -239,24 +362,28 @@ export default function ProfileScreen() {
     router.push('/profile/logs');
   };
 
-  const handleSignOut = async () => {
+  const performSignOut = async () => {
     try {
-      console.log('Signing out...');
-      // Clear user data, tokens, etc.
       const { authService } = await import('@/services/auth-service');
       await authService.logout();
-      // Navigate to homescreen
-      router.replace('/');
     } catch (error) {
       console.error('Logout error:', error);
-      // Still navigate to homescreen even if logout fails
+    } finally {
       router.replace('/');
     }
   };
 
+  const handleSignOut = () => {
+    setIsSigningOut(true);
+    // fade the whole screen then run logout
+    signOutProgress.value = withTiming(0, { duration: 300 }, () => {
+      runOnJS(performSignOut)();
+    });
+  };
+
   return (
     <BottomSheetModalProvider>
-      <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
+      <Animated.View style={[{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)' }, signOutStyle, animatedLayoutStyle]}>
         <StatusBar
           barStyle="light-content"
           backgroundColor="transparent"
@@ -324,27 +451,36 @@ export default function ProfileScreen() {
                 {loading ? (
                   <View className="w-24 h-24 bg-gray-600 rounded-full animate-pulse" />
                 ) : (
-                  <TouchableOpacity
-                    onPress={handleAvatarPress}
-                    activeOpacity={0.8}
-                    disabled={uploadingImage}
-                  >
-                    <Avatar
-                      size="xl"
-                      imageSource={
-                        userData?.photo && typeof userData.photo === 'string'
-                          ? { uri: userData.photo.startsWith('http') ? userData.photo : `${API_BASE_URL}${userData.photo}` }
-                          : require('@/assets/images/sample-profile-picture.jpg')
-                      }
-                    />
-                    <View className="bg-default-primary absolute bottom-0 right-0 w-10 h-10 rounded-full items-center justify-center">
+                  <View className="relative w-32 h-32">
+                    <TouchableOpacity
+                      onPress={handleAvatarPress}
+                      activeOpacity={0.85}
+                      className="w-32 h-32 rounded-xl overflow-hidden"
+                    >
+                      <Image
+                        source={
+                          userData?.photo && typeof userData.photo === 'string'
+                            ? { uri: userData.photo }
+                            : require('@/assets/images/sample-profile-picture.jpg')
+                        }
+                        className="w-full h-full"
+                        resizeMode="cover"
+                      />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      className="bg-default-primary absolute -bottom-1 -right-1 w-10 h-10 rounded-full items-center justify-center"
+                      onPress={handleCameraButtonPress}
+                      activeOpacity={0.8}
+                      disabled={uploadingImage}
+                    >
                       {uploadingImage ? (
                         <View className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       ) : (
                         <Camera size={20} color="white" />
                       )}
-                    </View>
-                  </TouchableOpacity>
+                    </TouchableOpacity>
+                  </View>
                 )}
               </View>
             </View>
@@ -474,6 +610,18 @@ export default function ProfileScreen() {
               right: 0,
             }}
           >
+            {isSigningOut && (
+              <View
+                style={{
+                  ...StyleSheet.absoluteFillObject,
+                  backgroundColor: 'rgba(0,0,0,0.6)',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                <ActivityIndicator size="large" color="#fff" />
+              </View>
+            )}
             <TouchableOpacity
               onPress={handleSignOut}
               className="bg-gray-800 p-4 rounded-xl border border-gray-600"
@@ -492,7 +640,84 @@ export default function ProfileScreen() {
           onTakePhoto={handleTakePhoto}
           onChoosePhoto={handleChoosePhoto}
         />
-      </View>
+
+        <Modal
+          visible={isImageViewerVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={handleCloseImageViewer}
+        >
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.95)' }}>
+            <View
+              style={{
+                position: 'absolute',
+                top: insets.top + 12,
+                right: 16,
+                zIndex: 20,
+                flexDirection: 'row',
+                gap: 8,
+              }}
+            >
+              <Pressable
+                onPress={() => handleZoom(-BUTTON_ZOOM_STEP)}
+                style={({ pressed }) => ({
+                  width: 42,
+                  height: 42,
+                  borderRadius: 21,
+                  backgroundColor: pressed ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.18)',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  transform: [{ scale: pressed ? 0.97 : 1 }],
+                })}
+              >
+                <ZoomOut size={20} color="#FFFFFF" />
+              </Pressable>
+              <Pressable
+                onPress={() => handleZoom(BUTTON_ZOOM_STEP)}
+                style={({ pressed }) => ({
+                  width: 42,
+                  height: 42,
+                  borderRadius: 21,
+                  backgroundColor: pressed ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.18)',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  transform: [{ scale: pressed ? 0.97 : 1 }],
+                })}
+              >
+                <ZoomIn size={20} color="#FFFFFF" />
+              </Pressable>
+              <Pressable
+                onPress={handleCloseImageViewer}
+                style={({ pressed }) => ({
+                  width: 42,
+                  height: 42,
+                  borderRadius: 21,
+                  backgroundColor: pressed ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.18)',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  transform: [{ scale: pressed ? 0.97 : 1 }],
+                })}
+              >
+                <X size={20} color="#FFFFFF" />
+              </Pressable>
+            </View>
+
+            <GestureDetector gesture={composed}>
+              <Animated.View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                {userData?.photo ? (
+                  <Animated.Image
+                    source={{ uri: userData.photo }}
+                    resizeMode="contain"
+                    style={[{ width: '100%', height: '75%' }, animatedImageStyle]}
+                  />
+                ) : null}
+              </Animated.View>
+            </GestureDetector>
+            </View>
+          </GestureHandlerRootView>
+        </Modal>
+      </Animated.View>
     </BottomSheetModalProvider>
   );
 }

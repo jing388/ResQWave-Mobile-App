@@ -1,6 +1,6 @@
-import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
+import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import { Map, Satellite } from 'lucide-react-native';
-import React, { RefObject, useCallback } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { TouchableOpacity, Text, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { colors } from '@/constants/colors';
@@ -31,34 +31,63 @@ export const MAP_STYLES: MapStyle[] = [
 ];
 
 interface MapStyleSheetProps {
-  bottomSheetRef: RefObject<BottomSheetModal | null>;
+  visible: boolean;
+  onClose: () => void;
   onStyleSelect: (style: MapStyle) => void;
   currentStyleId: string;
+  onSheetChange?: (index: number) => void;
 }
 
-export default function MapStyleSheet({ 
-  bottomSheetRef, 
-  onStyleSelect, 
-  currentStyleId
+export default function MapStyleSheet({
+  visible,
+  onClose,
+  onStyleSelect,
+  currentStyleId,
+  onSheetChange,
 }: MapStyleSheetProps) {
+  const bottomSheetRef = useRef<BottomSheet>(null);
 
-  const handleStyleSelect = useCallback((style: MapStyle) => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    onStyleSelect(style);
-    bottomSheetRef.current?.close();
-  }, [onStyleSelect, bottomSheetRef]);
+  const handleStyleSelect = useCallback(
+    (style: MapStyle) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onStyleSelect(style);
+      bottomSheetRef.current?.close();
+    },
+    [onStyleSelect]
+  );
+
+  const handleSheetChange = useCallback(
+    (index: number) => {
+      // When the sheet is closed, notify the parent so it can update state.
+      if (index === -1) {
+        onClose();
+      }
+      onSheetChange?.(index);
+    },
+    [onClose, onSheetChange]
+  );
 
   const handleDismiss = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }, []);
+    onClose();
+  }, [onClose]);
 
   return (
-    <BottomSheetModal
+    <BottomSheet
       ref={bottomSheetRef}
-      snapPoints={['30%']}
-      backgroundStyle={{ backgroundColor: 'transparent' }}
-      handleIndicatorStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.3)' }}
+      index={visible ? 0 : -1}
+      enableDynamicSizing
+      enablePanDownToClose
+      enableHandlePanningGesture
+      enableOverDrag={false}
+      onChange={handleSheetChange}
       onDismiss={handleDismiss}
+      backgroundStyle={{
+        backgroundColor: 'transparent',
+      }}
+      handleIndicatorStyle={{
+        backgroundColor: 'rgba(255, 255, 255, 0.3)',
+      }}
     >
       <BottomSheetView style={{ flex: 1 }}>
         <View
@@ -70,7 +99,9 @@ export default function MapStyleSheet({
           }}
         >
           {/* Handle bar */}
-          <View className="w-12 h-1 bg-white/30 rounded-full self-center mb-4" />
+          <View className="self-center mb-4 py-2">
+            <View className="w-14 h-1.5 bg-white/30 rounded-full" />
+          </View>
 
           <Text className="text-white text-lg font-geist-semibold mb-4">
             Map Style
@@ -104,6 +135,6 @@ export default function MapStyleSheet({
           </View>
         </View>
       </BottomSheetView>
-    </BottomSheetModal>
+    </BottomSheet>
   );
 }

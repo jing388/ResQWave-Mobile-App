@@ -1,7 +1,7 @@
-import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
-import { Radio, Share2, Link2, ArrowLeft, Check } from 'lucide-react-native';
+import BottomSheet, { BottomSheetView, useBottomSheetSpringConfigs } from '@gorhom/bottom-sheet';
+import { Radio, Share2, Link2, ArrowLeft, Check, ExternalLink } from 'lucide-react-native';
 import React, { useCallback, useRef, useState } from 'react';
-import { Text, View, TouchableOpacity, Share, Alert } from 'react-native';
+import { Text, View, TouchableOpacity, Share, Alert, Linking } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { MarkerData } from '@/types/neighborhood';
 import { formatDate } from '@/utils/formatters';
@@ -10,6 +10,7 @@ import { colors } from "@/constants/colors";
 interface InfoSheetProps {
   visible: boolean;
   markerData: MarkerData | null;
+  isOwnNeighborhood?: boolean;
   onClose: () => void;
   onGetDirections?: (markerData: MarkerData) => void;
   onMoreInfo?: (markerData: MarkerData) => void;
@@ -49,6 +50,7 @@ const DetailRow = ({
 export function InfoSheet({
   visible,
   markerData,
+  isOwnNeighborhood = false,
   onClose,
   onGetDirections,
   onMoreInfo,
@@ -57,6 +59,15 @@ export function InfoSheet({
   const bottomSheetRef = useRef<BottomSheet>(null);
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+
+  const animationConfigs = useBottomSheetSpringConfigs({
+    damping: 28,
+    stiffness: 260,
+    mass: 0.75,
+    overshootClamping: true,
+    restDisplacementThreshold: 0.1,
+    restSpeedThreshold: 0.1,
+  });
 
   const handleSheetChanges = useCallback(
     (index: number) => {
@@ -99,12 +110,43 @@ export function InfoSheet({
         message: `Check out this location: ${markerData.neighborhoodID}\n${markerData.address}\n\n${link}`,
         title: `Share ${markerData.neighborhoodID}`,
       });
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Could not share location');
     }
   }, [markerData, generateShareLink]);
 
+  const handleOpenCoordinates = useCallback(async () => {
+    if (!markerData) return;
+
+    const mapsUrl = `https://maps.google.com/?q=${markerData.latitude},${markerData.longitude}`;
+
+    Alert.alert(
+      'Open in Google Maps?',
+      'This will open the neighborhood coordinates in Google Maps.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Open Maps',
+          onPress: async () => {
+            const canOpen = await Linking.canOpenURL(mapsUrl);
+
+            if (!canOpen) {
+              Alert.alert('Unable to open maps', 'Google Maps could not be opened on this device.');
+              return;
+            }
+
+            await Linking.openURL(mapsUrl);
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  }, [markerData]);
+
   if (!markerData) return null;
+
+  const signalAccent = isOwnNeighborhood ? '#34D399' : colors.brand.primary;
+  const shareAccent = isOwnNeighborhood ? '#10B981' : colors.brand.primary;
 
   return (
     <BottomSheet
@@ -114,6 +156,7 @@ export function InfoSheet({
       onChange={handleSheetChanges}
       enablePanDownToClose={true}
       enableOverDrag={false}
+      animationConfigs={animationConfigs}
       handleIndicatorStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.3)', width: 36, height: 4 }}
       backgroundStyle={{ backgroundColor: '#141414', borderTopLeftRadius: 24, borderTopRightRadius: 24 }}
     >
@@ -137,21 +180,28 @@ export function InfoSheet({
                 alignItems: 'center',
                 justifyContent: 'center',
               }}>
-                <Radio size={22} color={colors.brand.primary} />
+                <Radio size={22} color={signalAccent} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ color: '#FFFFFF', fontSize: 22, fontWeight: '700', letterSpacing: 0.2 }}>
                   {markerData.neighborhoodID}
                 </Text>
-                <Text style={{ color: '#6B7280', fontSize: 12, marginTop: 2 }}>
-                  {markerData.latitude.toFixed(6)}, {markerData.longitude.toFixed(6)}
-                </Text>
+                <TouchableOpacity
+                  onPress={handleOpenCoordinates}
+                  activeOpacity={0.7}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}
+                >
+                  <Text style={{ color: '#60A5FA', fontSize: 12 }}>
+                    {markerData.latitude.toFixed(6)}, {markerData.longitude.toFixed(6)}
+                  </Text>
+                  <ExternalLink size={12} color="#60A5FA" />
+                </TouchableOpacity>
               </View>
               {/* Share Button */}
               <TouchableOpacity
                 onPress={() => setShowShareSheet(true)}
                 style={{
-                  backgroundColor: colors.brand.primary,
+                  backgroundColor: shareAccent,
                   borderRadius: 12,
                   width: 44,
                   height: 44,

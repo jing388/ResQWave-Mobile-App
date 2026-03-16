@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const { height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 interface Message {
   id: string;
@@ -161,6 +161,29 @@ export default function ChatbotScreen() {
     "Hi, I'm Reskwie! Think of me like an assistant who's here to help you get to know ResQWave more!\n\nSo, what can I help you with today?"
   );
   const [userRole] = useState<string>('focal_persons');
+  const [isClosing, setIsClosing] = useState(false);
+  const translateX = useRef(new Animated.Value(width)).current;
+
+  useEffect(() => {
+    Animated.timing(translateX, {
+      toValue: 0,
+      duration: 220,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  const handleClose = () => {
+    if (isClosing) return;
+    setIsClosing(true);
+
+    Animated.timing(translateX, {
+      toValue: width,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => {
+      router.back();
+    });
+  };
 
   // Fetch welcome message from backend on mount
   useEffect(() => {
@@ -475,7 +498,7 @@ export default function ChatbotScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: 'transparent' }}>
+    <Animated.View style={{ flex: 1, backgroundColor: 'transparent', transform: [{ translateX }] }}>
       <StatusBar
         barStyle="light-content"
         backgroundColor="transparent"
@@ -493,12 +516,12 @@ export default function ChatbotScreen() {
           backgroundColor: 'rgba(0, 0, 0, 0.5)',
         }}
         activeOpacity={1}
-        onPress={() => router.back()}
+        onPress={handleClose}
       />
 
       {/* Back Button */}
       <TouchableOpacity
-        onPress={() => router.back()}
+        onPress={handleClose}
         style={{
           position: 'absolute',
           top: insets.top + 10,
@@ -603,7 +626,7 @@ export default function ChatbotScreen() {
               <Text style={{ color: '#FFFFFF' }}> at your service!</Text>
             </Text>
             <Text style={{ color: '#A3A3A3', fontSize: 14, textAlign: 'center', marginTop: 4 }} className='font-normal'>
-              ResQWave's Chatbot assistant
+              ResQWave&apos;s Chatbot assistant
             </Text>
           </View>
 
@@ -789,6 +812,6 @@ export default function ChatbotScreen() {
           </KeyboardAvoidingView>
         </View>
       </View>
-    </View>
+    </Animated.View>
   );
 }
