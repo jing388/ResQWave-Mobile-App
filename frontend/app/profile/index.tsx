@@ -74,7 +74,7 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     transition.value = withTiming(0, { duration: 250 });
-  }, []);
+  }, [transition]);
 
 
   // Reanimated shared values for zoom
@@ -117,30 +117,6 @@ export default function ProfileScreen() {
     transform: [{ scale: scale.value }],
   }));
 
-  // Load user profile on mount
-  useEffect(() => {
-    const initializeProfile = async () => {
-      const token = await AsyncStorage.getItem(TOKEN_KEY);
-      setAuthToken(token);
-      await loadUserProfile(false, token);
-      await requestPermissions();
-    };
-    
-    initializeProfile().catch(error => {
-      console.error('Failed to initialize profile:', error);
-    });
-  }, []);
-
-  // Reload profile when screen comes into focus (from cache if available)
-  useFocusEffect(
-    useCallback(() => {
-      // Reload profile from cache when returning to this screen
-      loadUserProfile(false).catch(error => {
-        console.error('Failed to reload profile on focus:', error);
-      });
-    }, [])
-  );
-
   const requestPermissions = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
@@ -152,17 +128,17 @@ export default function ProfileScreen() {
     }
   };
 
-  const loadUserProfile = async (forceRefresh: boolean = false, tokenOverride?: string | null) => {
+  const loadUserProfile = useCallback(async (forceRefresh: boolean = false, tokenOverride?: string | null) => {
     try {
       setLoading(true);
       // Pass forceRefresh option to bypass cache when needed
       const profile = await getProfile({ forceRefresh });
       const effectiveToken = tokenOverride ?? authToken;
-      
+
       // Prepare profile with local image caching
       const profileWithImage = await prepareProfileWithLocalImage(profile, effectiveToken);
       setUserData(profileWithImage);
-      
+
       console.log('✅ Profile loaded with image:', profileWithImage.photo?.substring(0, 50));
     } catch (error) {
       console.error('Failed to load user profile:', error);
@@ -179,7 +155,31 @@ export default function ProfileScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [authToken]);
+
+  // Load user profile on mount
+  useEffect(() => {
+    const initializeProfile = async () => {
+      const token = await AsyncStorage.getItem(TOKEN_KEY);
+      setAuthToken(token);
+      await loadUserProfile(false, token);
+      await requestPermissions();
+    };
+
+    initializeProfile().catch(error => {
+      console.error('Failed to initialize profile:', error);
+    });
+  }, [loadUserProfile]);
+
+  // Reload profile when screen comes into focus (from cache if available)
+  useFocusEffect(
+    useCallback(() => {
+      // Reload profile from cache when returning to this screen
+      loadUserProfile(false).catch(error => {
+        console.error('Failed to reload profile on focus:', error);
+      });
+    }, [loadUserProfile])
+  );
 
   // Pull-to-refresh handler
   const onRefresh = useCallback(async () => {
@@ -190,7 +190,7 @@ export default function ProfileScreen() {
     } finally {
       setRefreshing(false);
     }
-  }, []);
+  }, [loadUserProfile]);
 
   const closeWithAnimation = () => {
     if (isClosing) return;

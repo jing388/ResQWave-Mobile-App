@@ -296,7 +296,7 @@ const getProfileImageUri = async (userId: string, serverImageUrl: string | undef
         console.log('🖼️ [getProfileImageUri] Using cached local image:', localPath);
         return localPath;
       }
-    } catch (error) {
+    } catch {
       console.log('ℹ️ [getProfileImageUri] Tracked local image not found, will fetch from server');
     }
   }
