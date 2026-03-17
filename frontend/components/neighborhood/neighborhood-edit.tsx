@@ -416,7 +416,7 @@ export const NeighborhoodEdit: React.FC<NeighborhoodEditProps> = ({
                             textAlign: 'center',
                           }}
                         >
-                          Tap "Add Member" below to add family members
+                          Tap {"Add Member"} below to add family members
                         </Text>
                       </View>
                     )}

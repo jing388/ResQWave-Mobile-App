@@ -65,8 +65,6 @@ export function InfoSheet({
     stiffness: 260,
     mass: 0.75,
     overshootClamping: true,
-    restDisplacementThreshold: 0.1,
-    restSpeedThreshold: 0.1,
   });
 
   const handleSheetChanges = useCallback(

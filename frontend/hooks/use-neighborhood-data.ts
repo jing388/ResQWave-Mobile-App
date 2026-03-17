@@ -107,7 +107,7 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
     const loadData = async () => {
       console.log('🔄 [use-neighborhood-data] ========================================');
       console.log('🔄 [use-neighborhood-data] Effect triggered with neighborhoodId:', neighborhoodId);
-      
+
       // Don't fetch if neighborhoodId is still being determined
       if (neighborhoodId === undefined) {
         console.log('🔍 [use-neighborhood-data] NeighborhoodId is undefined, skipping fetch');
@@ -120,13 +120,13 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
         setIsLoading(true);
         // Clear previous data to prevent showing stale data
         setNeighborhoodData(null);
-        
+
         // IMPORTANT: For data privacy, we ALWAYS fetch the user's OWN neighborhood
         // by passing null/undefined, which uses the /neighborhood/own endpoint
         console.log('🔍 [use-neighborhood-data] Fetching user\'s OWN neighborhood data');
         console.log('🔍 [use-neighborhood-data] Requested ID:', neighborhoodId);
         console.log('🔍 [use-neighborhood-data] Calling fetchNeighborhoodData with null (own neighborhood)...');
-        
+
         // Always fetch own neighborhood for data privacy compliance
         const data = await fetchNeighborhoodData(null);
 
@@ -187,7 +187,7 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
       } catch (error: any) {
         console.error('❌ [use-neighborhood-data] Error fetching neighborhood data:', error);
         console.error('❌ [use-neighborhood-data] Error message:', error?.message);
-        
+
         // Check if it's a 404 error (neighborhood doesn't exist)
         if (error instanceof Error && (error.message.includes('Neighborhood Not Found') || error.message.includes('404'))) {
           console.error('❌ [use-neighborhood-data] Neighborhood not found:', neighborhoodId);
@@ -195,7 +195,7 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
         } else {
           console.error('❌ [use-neighborhood-data] Unexpected error:', error);
         }
-        
+
         // Set neighborhood data to null to show "No Neighborhood Selected" message
         setNeighborhoodData(null);
       } finally {
@@ -289,20 +289,20 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
 
       const hasChanges =
         String(neighborhoodData.approxHouseholds) !==
-          String(updatedDataParams.approxHouseholds) ||
+        String(updatedDataParams.approxHouseholds) ||
         String(neighborhoodData.approxResidents) !==
-          String(updatedDataParams.approxResidents) ||
+        String(updatedDataParams.approxResidents) ||
         neighborhoodData.floodwaterSubsidence !==
-          updatedDataParams.floodwaterSubsidence ||
+        updatedDataParams.floodwaterSubsidence ||
         JSON.stringify(normalizedCurrentHazards) !==
-          JSON.stringify(normalizedNextHazards) ||
+        JSON.stringify(normalizedNextHazards) ||
         JSON.stringify(normalizedCurrentNotableInfo) !==
-          JSON.stringify(normalizedNextNotableInfo) ||
+        JSON.stringify(normalizedNextNotableInfo) ||
         currentAltFullName !== nextAltFullName ||
         neighborhoodData.alternativeFocalPerson.contactNo.trim() !==
-          editedData.alternativeFocalPerson.contactNo.trim() ||
+        editedData.alternativeFocalPerson.contactNo.trim() ||
         neighborhoodData.alternativeFocalPerson.email.trim() !==
-          editedData.alternativeFocalPerson.email.trim();
+        editedData.alternativeFocalPerson.email.trim();
 
       // Serialize family details for persistence (backend-ready format)
       const familyDetailsPayload: PersistedFamilyDetail[] = editedData.families
@@ -324,9 +324,9 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
       setNeighborhoodData((prev) =>
         prev
           ? {
-              ...prev,
-              familyDetails: familyDetailsPayload,
-            }
+            ...prev,
+            familyDetails: familyDetailsPayload,
+          }
           : prev,
       );
 
@@ -357,8 +357,8 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
       const now = new Date().toISOString();
       setNeighborhoodData({
         ...neighborhoodData,
-        approxHouseholds: updatedDataParams.approxHouseholds,
-        approxResidents: updatedDataParams.approxResidents,
+        approxHouseholds: String(updatedDataParams.approxHouseholds),
+        approxResidents: String(updatedDataParams.approxResidents),
         avgHouseholdSize: updatedDataParams.avgHouseholdSize,
         floodwaterSubsidence: updatedDataParams.floodwaterSubsidence,
         floodRelatedHazards: updatedDataParams.floodRelatedHazards,
@@ -374,7 +374,7 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
       });
 
       setIsEditMode(false);
-      
+
       // Show success notification
       setNotification({
         visible: true,
@@ -384,7 +384,7 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
       });
     } catch (error) {
       console.error('Error updating neighborhood data:', error);
-      
+
       // Show error notification
       setNotification({
         visible: true,
@@ -395,7 +395,7 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
     } finally {
       setIsSubmitting(false);
     }
-  }; 
+  };
 
   const dismissNotification = () => {
     setNotification((prev) => ({ ...prev, visible: false }));
@@ -403,19 +403,19 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
 
   const handleDropdownChange = (field: string, value: string) => {
     console.log('🔄 [handleDropdownChange] field:', field, 'value:', value, 'type:', typeof value);
-    
+
     const processedValue = field === 'approxHouseholds' || field === 'approxResidents'
-      ? value.includes('(custom)') 
+      ? value.includes('(custom)')
         ? value // Keep custom values as-is
-        : value.includes('-') 
+        : value.includes('-')
           ? value // Keep range values as strings
           : parseInt(value) // Convert individual numbers
       : field === 'avgHouseholdSize'
         ? parseFloat(value)
         : value;
-    
+
     console.log('🔄 [handleDropdownChange] processedValue:', processedValue, 'type:', typeof processedValue);
-    
+
     setEditedData((prev) => ({
       ...prev,
       [field]: processedValue,
@@ -500,10 +500,10 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
         .map((f) =>
           f.id === id
             ? {
-                ...f,
-                name: normalizedName,
-                editing: false,
-              }
+              ...f,
+              name: normalizedName,
+              editing: false,
+            }
             : f,
         )
         .filter((f) => f.id !== id || f.name.trim().length > 0),
@@ -526,16 +526,16 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
       families: prev.families.map((f) =>
         f.id === familyId
           ? {
-              ...f,
-              members: [
-                ...f.members,
-                {
-                  id: Date.now().toString(),
-                  name: '',
-                  editing: true,
-                },
-              ],
-            }
+            ...f,
+            members: [
+              ...f.members,
+              {
+                id: Date.now().toString(),
+                name: '',
+                editing: true,
+              },
+            ],
+          }
           : f,
       ),
     }));
@@ -547,9 +547,9 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
       families: prev.families.map((f) =>
         f.id === familyId
           ? {
-              ...f,
-              members: f.members.filter((m) => m.id !== memberId),
-            }
+            ...f,
+            members: f.members.filter((m) => m.id !== memberId),
+          }
           : f,
       ),
     }));
@@ -561,11 +561,11 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
       families: prev.families.map((f) =>
         f.id === familyId
           ? {
-              ...f,
-              members: f.members.map((m) =>
-                m.id === memberId ? { ...m, editing: true } : m,
-              ),
-            }
+            ...f,
+            members: f.members.map((m) =>
+              m.id === memberId ? { ...m, editing: true } : m,
+            ),
+          }
           : f,
       ),
     }));
@@ -577,11 +577,11 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
       families: prev.families.map((f) =>
         f.id === familyId
           ? {
-              ...f,
-              members: f.members.map((m) =>
-                m.id === memberId ? { ...m, name: newName.trim(), editing: false } : m,
-              ),
-            }
+            ...f,
+            members: f.members.map((m) =>
+              m.id === memberId ? { ...m, name: newName.trim(), editing: false } : m,
+            ),
+          }
           : f,
       ),
     }));
@@ -612,5 +612,5 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
     handleDeleteMember,
     handleRenameMemberStart,
     handleRenameMemberCommit,
-  }; 
+  };
 };

@@ -22,12 +22,10 @@ module.exports = {
     predictiveBackGestureEnabled: false,
     package: 'com.anonymous.ResQWaveMobile',
     softwareKeyboardLayoutMode: 'pan',
-    navigationBar: {
-      visible: true
-    },
-    statusBar: {
-      hidden: false,
-      translucent: true
+    config: {
+      googleMaps: {
+        apiKey: 'AIzaSyCCv2zW0RiZMKTNz3QGl3sP6LCAwZ_B_VQ'
+      }
     }
   },
   web: {
@@ -58,7 +56,7 @@ module.exports = {
   },
   extra: {
     eas: {
-      projectId: '36b03b58-49ae-46b2-8a1c-ecb9a57044c3'
+      projectId: 'e3de431e-03b5-4d1d-88d0-c1a9194177ad'
     }
   }
 };

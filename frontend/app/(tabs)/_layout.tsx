@@ -92,7 +92,6 @@ export default function TabLayout() {
           tabBarShowLabel: true,
           lazy: true,
           tabBarHideOnKeyboard: true,
-          tabBarActiveIndicatorStyle: { backgroundColor: 'transparent' },
           tabBarStyle: {
             paddingTop: 8,
             paddingBottom: resolvedBottomInset + EXTRA_BOTTOM,

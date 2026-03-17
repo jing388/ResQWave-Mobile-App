@@ -60,17 +60,13 @@ export default function MapStyleSheet({
     (index: number) => {
       // When the sheet is closed, notify the parent so it can update state.
       if (index === -1) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         onClose();
       }
       onSheetChange?.(index);
     },
     [onClose, onSheetChange]
   );
-
-  const handleDismiss = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onClose();
-  }, [onClose]);
 
   return (
     <BottomSheet
@@ -81,7 +77,6 @@ export default function MapStyleSheet({
       enableHandlePanningGesture
       enableOverDrag={false}
       onChange={handleSheetChange}
-      onDismiss={handleDismiss}
       backgroundStyle={{
         backgroundColor: 'transparent',
       }}
@@ -106,27 +101,25 @@ export default function MapStyleSheet({
           <Text className="text-white text-lg font-geist-semibold mb-4">
             Map Style
           </Text>
-          
+
           <View className="flex-row gap-3">
             {MAP_STYLES.map((style) => {
               const isSelected = currentStyleId === style.id;
-              
+
               return (
                 <TouchableOpacity
                   key={style.id}
                   onPress={() => handleStyleSelect(style)}
-                  className={`flex-1 flex-col items-center justify-center p-4 rounded-xl ${
-                    isSelected ? 'bg-blue-500/20 border-2 border-blue-500' : 'border border-gray-700'
-                  }`}
+                  className={`flex-1 flex-col items-center justify-center p-4 rounded-xl ${isSelected ? 'bg-blue-500/20 border-2 border-blue-500' : 'border border-gray-700'
+                    }`}
                   activeOpacity={0.7}
                   style={{ minHeight: 100 }}
                 >
                   <View className="mb-2">
                     {style.icon?.(isSelected ? '#3B82F6' : '#FFFFFF')}
                   </View>
-                  <Text className={`text-center text-sm font-geist-medium ${
-                    isSelected ? 'text-blue-400' : 'text-gray-300'
-                  }`}>
+                  <Text className={`text-center text-sm font-geist-medium ${isSelected ? 'text-blue-400' : 'text-gray-300'
+                    }`}>
                     {style.name}
                   </Text>
                 </TouchableOpacity>
