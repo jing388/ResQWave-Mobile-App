@@ -20,6 +20,7 @@ import Collapsible from 'react-native-collapsible';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { reportService, ReportData } from '@/services/report-service';
 import { generateReportPDF } from '@/utils/pdf-generator';
+import { authService } from '@/services/auth-service';
 
 export default function ReportsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -46,16 +47,49 @@ export default function ReportsScreen() {
   const [notificationType, setNotificationType] = useState<'success' | 'error'>('success');
   const [notificationTitle, setNotificationTitle] = useState('');
   const [notificationMessage, setNotificationMessage] = useState('');
+  const [userNeighborhoodId, setUserNeighborhoodId] = useState<string | null>(null);
 
-  // Fetch reports from API
+  /**
+   * Fetch reports from API and filter by user's neighborhood
+   * 
+   * This ensures that focal persons only see reports from their own neighborhood,
+   * not reports from other neighborhoods (e.g., N021, N022, etc.).
+   * 
+   * The filtering is done on the frontend to avoid modifying backend endpoints
+   * that are shared with the web application.
+   */
   const fetchReports = async (bypassCache = false): Promise<void> => {
     try {
       setError(null);
-      const data = await reportService.getAggregatedReports(undefined, bypassCache);
-      setReports(data);
-    } catch (err) {
+      
+      // Get user's neighborhood ID
+      const user = await authService.getStoredUser();
+      const neighborhoodId = (user as any)?.neighborhood?.id || null;
+      
+      console.log('📊 [Reports] User neighborhood ID:', neighborhoodId);
+      setUserNeighborhoodId(neighborhoodId);
+      
+      // Fetch all reports
+      const allReports = await reportService.getAggregatedReports(undefined, bypassCache);
+      console.log('📊 [Reports] Total reports fetched:', allReports.length);
+      
+      // Filter reports to only show those from user's neighborhood
+      const filteredReports = neighborhoodId 
+        ? allReports.filter(report => {
+            const match = report.neighborhoodId === neighborhoodId;
+            if (!match) {
+              console.log(`🔍 [Reports] Filtering out report from neighborhood ${report.neighborhoodId}`);
+            }
+            return match;
+          })
+        : allReports;
+      
+      console.log('📊 [Reports] Filtered reports (user\'s neighborhood only):', filteredReports.length);
+      setReports(filteredReports);
+    } catch (err: any) {
       console.error('Error fetching reports:', err);
-      setError('Failed to load reports. Please try again.');
+      const errorMessage = err?.message || 'Failed to load reports. Please try again.';
+      setError(errorMessage);
       throw err; // Re-throw to handle in calling function
     } finally {
       setLoading(false);
@@ -100,11 +134,14 @@ export default function ReportsScreen() {
       setNotificationTitle('Refresh Successful');
       setNotificationMessage('Reports have been updated with the latest data.');
       setShowNotification(true);
-    } catch (error) {
-      // Error notification
+    } catch (error: any) {
+      console.error('Refresh error:', error);
+      // Error notification with actual error message
       setNotificationType('error');
       setNotificationTitle('Refresh Failed');
-      setNotificationMessage('Failed to update reports. Please check your connection and try again.');
+      setNotificationMessage(
+        error?.message || 'Failed to update reports. Please check your connection and try again.'
+      );
       setShowNotification(true);
     } finally {
       stopRefreshAnimation();
@@ -261,11 +298,13 @@ export default function ReportsScreen() {
       }
       
       setShowPDFViewer(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error viewing document:', error);
       setNotificationType('error');
       setNotificationTitle('PDF Generation Failed');
-      setNotificationMessage('Failed to generate PDF. Please try again.');
+      setNotificationMessage(
+        error?.message || 'Failed to generate PDF. Please try again.'
+      );
       setShowNotification(true);
     } finally {
       setGeneratingPDF(false);
@@ -342,7 +381,9 @@ export default function ReportsScreen() {
             </TouchableOpacity>
           </View>
           <Text className="text-gray-400 text-base font-geist-regular">
-            View and analyze incident reports ({reports.length} total)
+            {userNeighborhoodId 
+              ? `Showing reports from your neighborhood (${userNeighborhoodId}) - ${reports.length} total`
+              : `View and analyze incident reports (${reports.length} total)`}
           </Text>
         </View>
 
@@ -427,10 +468,20 @@ export default function ReportsScreen() {
               </TouchableOpacity>
             </View>
           ) : Object.keys(groupedReports).length === 0 ? (
-            <View className="flex-1 items-center justify-center py-20">
-              <Text className="text-gray-400 text-center font-geist-regular">
-                No reports found
-              </Text>
+            <View className="flex-1 items-center justify-center py-20 px-6">
+              <View className="bg-gray-800 rounded-2xl p-8 items-center max-w-md">
+                <View className="bg-gray-700 rounded-full w-16 h-16 items-center justify-center mb-4">
+                  <Text className="text-4xl">📋</Text>
+                </View>
+                <Text className="text-white text-xl font-geist-semibold mb-2 text-center">
+                  No Reports Yet
+                </Text>
+                <Text className="text-gray-400 text-center font-geist-regular leading-6">
+                  {userNeighborhoodId 
+                    ? `Your neighborhood (${userNeighborhoodId}) doesn't have any completed incident reports yet. Reports will appear here once rescue operations are completed and documented.`
+                    : 'No incident reports found. Reports will appear here once rescue operations are completed and documented.'}
+                </Text>
+              </View>
             </View>
           ) : (
             Object.entries(groupedReports)

@@ -1,16 +1,15 @@
 import { AutosizeTextarea } from '@/components/ui/autosize-textarea';
 import { Dropdown } from '@/components/ui/dropdown';
 import { EditableCheckbox } from '@/components/ui/editable-checkbox';
-import { EditInfoCard } from '@/components/ui/edit-info-card';
-import { EditedData, NeighborhoodData } from '@/types/neighborhood';
+import { EditedData, Family, NeighborhoodData } from '@/types/neighborhood';
 import { NeighborhoodDropdownOptions } from '@/constants/neighborhood-options';
-import React from 'react';
-import { Text, TextInput, View } from 'react-native';
+import React, { useState } from 'react';
+import { Alert, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ChevronDown, ChevronUp, Pencil, Trash2, Plus } from 'lucide-react-native';
 
-interface DropdownOption {
-  label: string;
-  value: string;
-}
+// ─────────────────────────────────────────────
+// Props
+// ─────────────────────────────────────────────
 
 interface NeighborhoodEditProps {
   neighborhoodData: NeighborhoodData;
@@ -20,223 +19,595 @@ interface NeighborhoodEditProps {
   onHazardToggle: (index: number) => void;
   onNotableInfoChange: (text: string) => void;
   onAlternativeFocalChange: (field: string, text: string) => void;
+  onAddFamily: () => void;
+  onDeleteFamily: (id: string) => void;
+  onRenameFamilyStart: (id: string) => void;
+  onRenameFamilyCommit: (id: string, newName: string) => void;
+  onToggleFamilyExpand: (id: string) => void;
+  onAddMember: (familyId: string) => void;
+  onDeleteMember: (familyId: string, memberId: string) => void;
+  onRenameMemberStart: (familyId: string, memberId: string) => void;
+  onRenameMemberCommit: (familyId: string, memberId: string, newName: string) => void;
 }
 
-const EditableDropdown = ({
+// ─────────────────────────────────────────────
+// Internal helpers
+// ─────────────────────────────────────────────
+
+const SectionHeader = ({ title }: { title: string }) => (
+  <Text
+    style={{
+      color: '#9CA3AF',
+      fontSize: 11,
+      fontFamily: 'Geist-Medium',
+      letterSpacing: 1.5,
+      textTransform: 'uppercase',
+      marginTop: 20,
+      marginBottom: 10,
+    }}
+  >
+    {title}
+  </Text>
+);
+
+const DropdownField = ({
   label,
   value,
   options,
   onChange,
-  showCustomInput = false,
-  onCustomValue,
-}: {
-  label: string;
-  value: string | number;
-  options: DropdownOption[];
-  onChange: (value: string) => void;
-  showCustomInput?: boolean;
-  onCustomValue?: (value: string) => void;
-}) => {
-  // For households and residents, the value is a number but options are ranges
-  // We need to find the matching range or use the value as-is for custom values
-  const getSelectedOption = () => {
-    if (typeof value === 'string' && value.includes('(custom)')) {
-      // Handle custom values
-      return { label: value, value: 'custom' };
-    }
-    
-    if (typeof value === 'number') {
-      // Find the range that contains this number
-      return options.find(option => {
-        if (option.value === 'custom') return false;
-        
-        const [min, max] = option.value.split('-').map(v => parseInt(v.replace(/,/g, '')));
-        return value >= min && value <= max;
-      });
-    }
-    
-    // For string values (like floodwater subsidence), do exact match
-    return options.find(option => option.value === String(value));
-  };
-
-  const selectedOption = getSelectedOption();
-  const hasValue = value && value !== 0;
-  
-  // Create better placeholders based on the field type
-  const getPlaceholder = () => {
-    if (hasValue && selectedOption) {
-      return selectedOption.label;
-    }
-    
-    switch(label) {
-      case 'Approximate No. of Households':
-        return 'Select number of households';
-      case 'Approx. No. of Residents':
-        return 'Select number of residents';
-      case 'Floodwater Subsidence Duration':
-        return 'Select floodwater duration';
-      default:
-        return `Select ${label.toLowerCase()}`;
-    }
-  };
-
-  const handleCustomValue = (customValue: string) => {
-    if (onCustomValue) {
-      // Create a custom display label
-      const customLabel = label.includes('Households') 
-        ? `${customValue} households (custom)`
-        : `${customValue} residents (custom)`;
-      onCustomValue(customLabel);
-    }
-  };
-
-  // Use the selected option's value if found, otherwise use the original value
-  const dropdownValue = selectedOption?.value || String(value);
-
-  return (
-    <View className="mb-4">
-      <Text className="text-gray-300 text-base font-geist-medium mb-2">
-        {label}
-      </Text>
-      <Dropdown
-        options={options}
-        selectedValue={dropdownValue}
-        onValueChange={onChange}
-        placeholder={getPlaceholder()}
-        showCustomInput={showCustomInput}
-        onCustomValue={handleCustomValue}
-      />
-    </View>
-  );
-};
-
-const EditableTextField = ({
-  label,
-  value,
-  onChange,
-  placeholder,
-  keyboardType = 'default',
+  isLast = false,
 }: {
   label: string;
   value: string;
-  onChange: (text: string) => void;
-  placeholder?: string;
-  keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
+  options: { label: string; value: string }[];
+  onChange: (v: string) => void;
+  isLast?: boolean;
 }) => (
-  <View className="mb-4">
-    <Text className="text-gray-300 text-base font-geist-medium mb-2">
+  <View style={{ marginBottom: isLast ? 0 : 16 }}>
+    <Text
+      style={{
+        color: '#D1D5DB',
+        fontSize: 14,
+        fontFamily: 'Geist-Medium',
+        marginBottom: 8,
+      }}
+    >
       {label}
     </Text>
-    <TextInput
-      className="border border-gray-600 rounded-lg bg-gray-800 px-3 py-3 text-white text-base"
-      value={value}
-      onChangeText={onChange}
-      placeholder={placeholder || `Enter ${label.toLowerCase()}`}
-      placeholderTextColor="#9CA3AF"
-      keyboardType={keyboardType}
+    <Dropdown
+      options={options}
+      selectedValue={value}
+      onValueChange={onChange}
+      placeholder={`Select ${label.toLowerCase()}`}
     />
   </View>
 );
 
+// ─────────────────────────────────────────────
+// Main component
+// ─────────────────────────────────────────────
+
 export const NeighborhoodEdit: React.FC<NeighborhoodEditProps> = ({
-  neighborhoodData,
   editedData,
   dropdownOptions,
   onDropdownChange,
   onHazardToggle,
   onNotableInfoChange,
-  onAlternativeFocalChange,
+  onAddFamily,
+  onDeleteFamily,
+  onRenameFamilyStart,
+  onRenameFamilyCommit,
+  onToggleFamilyExpand,
+  onAddMember,
+  onDeleteMember,
+  onRenameMemberStart,
+  onRenameMemberCommit,
 }) => {
-  return (
-    <>
-      {/* Neighborhood Information - Editable */}
-      <View className="px-6">
-        <EditInfoCard title="NEIGHBORHOOD INFORMATION">
-          <EditableDropdown
-            label="Approximate No. of Households"
-            value={String(editedData.approxHouseholds)}
-            options={dropdownOptions.households}
-            onChange={(value) => onDropdownChange('approxHouseholds', value)}
-            showCustomInput={true}
-            onCustomValue={(customLabel) => onDropdownChange('approxHouseholds', customLabel)}
-          />
-          <EditableDropdown
-            label="Approx. No. of Residents"
-            value={String(editedData.approxResidents)}
-            options={dropdownOptions.residents}
-            onChange={(value) => onDropdownChange('approxResidents', value)}
-            showCustomInput={true}
-            onCustomValue={(customLabel) => onDropdownChange('approxResidents', customLabel)}
-          />
-          <EditableDropdown
-            label="Floodwater Subsidence Duration"
-            value={editedData.floodwaterSubsidence}
-            options={dropdownOptions.subsidenceDuration}
-            onChange={(value) =>
-              onDropdownChange('floodwaterSubsidence', value)
+  // Local draft state for family name inputs (keyed by family id)
+  const [draftNames, setDraftNames] = useState<Record<string, string>>({});
+  // Local draft state for member name inputs (keyed by "familyId_memberId")
+  const [draftMemberNames, setDraftMemberNames] = useState<Record<string, string>>({});
+
+  const getDraft = (id: string, fallback: string) =>
+    draftNames[id] !== undefined ? draftNames[id] : fallback;
+
+  const setDraft = (id: string, value: string) =>
+    setDraftNames((prev) => ({ ...prev, [id]: value }));
+
+  const commitDraft = (id: string, fallback: string) => {
+    const name = draftNames[id] !== undefined ? draftNames[id] : fallback;
+    onRenameFamilyCommit(id, name || fallback);
+    setDraftNames((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  };
+
+  // Helper functions for member drafts
+  const getMemberDraft = (familyId: string, memberId: string, fallback: string) => {
+    const key = `${familyId}_${memberId}`;
+    return draftMemberNames[key] !== undefined ? draftMemberNames[key] : fallback;
+  };
+
+  const setMemberDraft = (familyId: string, memberId: string, value: string) => {
+    const key = `${familyId}_${memberId}`;
+    setDraftMemberNames((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const commitMemberDraft = (familyId: string, memberId: string, fallback: string) => {
+    const key = `${familyId}_${memberId}`;
+    const name = draftMemberNames[key] !== undefined ? draftMemberNames[key] : fallback;
+    onRenameMemberCommit(familyId, memberId, name || fallback);
+    setDraftMemberNames((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const cardStyle = {
+    backgroundColor: '#1D1D1D',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  };
+
+  const familyCount = editedData.families.length;
+  const singleFamily = familyCount === 1 ? editedData.families[0] : null;
+  const showLargeAddMember =
+    familyCount === 1 && !!singleFamily && singleFamily.members.length > 0;
+  const showInlineAddMember = familyCount >= 2;
+
+  const lastNamedFamily = [...editedData.families]
+    .reverse()
+    .find((family) => !family.editing && family.name.trim().length > 0);
+
+  const cleanupEmptyEntries = () => {
+    const familiesToDelete: string[] = [];
+    const membersToDelete: Array<{ familyId: string; memberId: string }> = [];
+
+    editedData.families.forEach((family) => {
+      if (family.editing) {
+        const draftName = getDraft(family.id, family.name).trim();
+        if (!draftName && !family.name.trim()) {
+          familiesToDelete.push(family.id);
+        } else {
+          commitDraft(family.id, family.name);
+        }
+      }
+
+      if (!familiesToDelete.includes(family.id)) {
+        family.members.forEach((member) => {
+          if (member.editing) {
+            const draftMemberName = getMemberDraft(
+              family.id,
+              member.id,
+              member.name,
+            ).trim();
+            if (!draftMemberName && !member.name.trim()) {
+              membersToDelete.push({ familyId: family.id, memberId: member.id });
+            } else {
+              commitMemberDraft(family.id, member.id, member.name);
             }
-          />
+          }
+        });
+      }
+    });
 
-          <View className="mt-4">
-            <Text className="text-gray-300 text-base font-geist-medium mb-3">
-              Flood Related Hazards
+    membersToDelete.forEach(({ familyId, memberId }) =>
+      onDeleteMember(familyId, memberId),
+    );
+    familiesToDelete.forEach((familyId) => onDeleteFamily(familyId));
+  };
+
+  const confirmDeleteFamily = (familyId: string, familyName: string) => {
+    const displayName = familyName.trim() || 'this family';
+    Alert.alert(
+      'Delete Family',
+      `Are you sure you want to delete ${displayName}? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => onDeleteFamily(familyId),
+        },
+      ],
+    );
+  };
+
+  const confirmDeleteMember = (familyId: string, memberId: string, memberName: string) => {
+    const displayName = memberName.trim() || 'this member';
+    Alert.alert(
+      'Delete Member',
+      `Are you sure you want to delete ${displayName}? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => onDeleteMember(familyId, memberId),
+        },
+      ],
+    );
+  };
+
+  return (
+    <View
+      style={{
+        paddingHorizontal: 24,
+        backgroundColor: '#171717',
+        paddingBottom: 40,
+      }}
+      onStartShouldSetResponderCapture={() => {
+        cleanupEmptyEntries();
+        return false;
+      }}
+    >
+      {/* ── ABOUT THE NEIGHBORHOOD ─────────────────────── */}
+      <SectionHeader title="ABOUT THE NEIGHBORHOOD" />
+      <View style={{ ...cardStyle, paddingVertical: 20 }}>
+        <DropdownField
+          label="Approx No. of Households"
+          value={String(editedData.approxHouseholds)}
+          options={dropdownOptions.households}
+          onChange={(v) => onDropdownChange('approxHouseholds', v)}
+        />
+        <DropdownField
+          label="Approx No. of Residents"
+          value={String(editedData.approxResidents)}
+          options={dropdownOptions.residents}
+          onChange={(v) => onDropdownChange('approxResidents', v)}
+        />
+        <DropdownField
+          label="Floodwater Subsidence"
+          value={editedData.floodwaterSubsidence}
+          options={dropdownOptions.subsidenceDuration}
+          onChange={(v) => onDropdownChange('floodwaterSubsidence', v)}
+          isLast
+        />
+      </View>
+
+      {/* ── EXISTING FLOOD-RELATED HAZARDS ─────────────── */}
+      <SectionHeader title="EXISTING FLOOD-RELATED HAZARDS" />
+      <View style={{ ...cardStyle, paddingVertical: 8 }}>
+        {editedData.floodRelatedHazards.map((hazard, index) => (
+          <EditableCheckbox
+            key={index}
+            label={hazard.label}
+            checked={hazard.checked}
+            onToggle={() => onHazardToggle(index)}
+          />
+        ))}
+      </View>
+
+      {/* ── FAMILY DETAILS ──────────────────────────────── */}
+      <SectionHeader title="FAMILY DETAILS" />
+      <View style={{ backgroundColor: '#1D1D1D', borderRadius: 12, overflow: 'hidden' }}>
+        {editedData.families.length === 0 ? (
+          <View style={{ paddingVertical: 20, paddingHorizontal: 16, alignItems: 'center' }}>
+            <Text style={{ color: '#6B7280', fontSize: 14, fontFamily: 'Geist-Regular', fontStyle: 'italic' }}>
+              No families added yet.
             </Text>
-            {editedData.floodRelatedHazards.map((hazard, index) => (
-              <EditableCheckbox
-                key={index}
-                label={hazard.label}
-                checked={hazard.checked}
-                onToggle={() => onHazardToggle(index)}
-              />
-            ))}
           </View>
+        ) : (
+          editedData.families.map((family, idx) => {
+            const isLast = idx === editedData.families.length - 1;
+            const isExpanded = !!family.expanded;
+            const isEditing = !!family.editing;
 
-          <View className="mt-4">
-            <AutosizeTextarea
-              label="Other Notable Information"
-              value={editedData.notableInfo}
-              onChangeText={onNotableInfoChange}
-              placeholder="Enter any additional information about the neighborhood..."
-              minHeight={120}
-              maxHeight={350}
-              showResizeHandle={true}
-              helperText="You can resize this textarea by dragging the handle"
-            />
-          </View>
-        </EditInfoCard>
+            return (
+              <View
+                key={family.id}
+                style={{
+                  borderBottomWidth: isLast ? 0 : 1,
+                  borderBottomColor: '#2A2A2A',
+                }}
+              >
+                {isEditing ? (
+                  /* Inline name editor row */
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      paddingHorizontal: 16,
+                      paddingVertical: 12,
+                      gap: 10,
+                    }}
+                  >
+                    <TextInput
+                      style={{
+                        flex: 1,
+                        backgroundColor: '#2A2A2A',
+                        borderRadius: 8,
+                        paddingHorizontal: 12,
+                        paddingVertical: 10,
+                        color: '#FFFFFF',
+                        fontSize: 14,
+                        fontFamily: 'Geist-Regular',
+                      }}
+                      value={getDraft(family.id, family.name)}
+                      onChangeText={(v) => setDraft(family.id, v)}
+                      onBlur={() => commitDraft(family.id, family.name)}
+                      onSubmitEditing={() => commitDraft(family.id, family.name)}
+                      placeholder="Family name"
+                      placeholderTextColor="#6B7280"
+                      autoFocus
+                      returnKeyType="done"
+                    />
+                    <TouchableOpacity
+                      onPress={() => confirmDeleteFamily(family.id, family.name)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Trash2 size={18} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  /* Collapsed / header row */
+                  <TouchableOpacity
+                    onPress={() => onToggleFamilyExpand(family.id)}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      paddingHorizontal: 16,
+                      paddingVertical: 14,
+                      gap: 8,
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={{
+                        flex: 1,
+                        color: '#FFFFFF',
+                        fontSize: 14,
+                        fontFamily: 'Geist-Medium',
+                      }}
+                    >
+                      {family.name || 'Unnamed Family'}
+                    </Text>
+                    {isExpanded && (
+                      <>
+                        <TouchableOpacity
+                          onPress={() => {
+                            setDraft(family.id, family.name);
+                            onRenameFamilyStart(family.id);
+                          }}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Pencil size={16} color="#9CA3AF" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => confirmDeleteFamily(family.id, family.name)}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Trash2 size={16} color="#EF4444" />
+                        </TouchableOpacity>
+                      </>
+                    )}
+                    {isExpanded ? (
+                      <ChevronUp size={18} color="#9CA3AF" />
+                    ) : (
+                      <ChevronDown size={18} color="#9CA3AF" />
+                    )}
+                  </TouchableOpacity>
+                )}
+
+                {/* Member list (expanded, not editing header) */}
+                {isExpanded && !isEditing && (
+                  <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
+                    {/* Show reminder if no named members */}
+                    {family.members.filter((m) => m.name.trim()).length === 0 && (
+                      <View
+                        style={{
+                          paddingVertical: 12,
+                          paddingHorizontal: 12,
+                          backgroundColor: '#2A2A2A',
+                          borderRadius: 8,
+                          marginBottom: 12,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: '#9CA3AF',
+                            fontSize: 13,
+                            fontFamily: 'Geist-Regular',
+                            fontStyle: 'italic',
+                            textAlign: 'center',
+                          }}
+                        >
+                          Tap "Add Member" below to add family members
+                        </Text>
+                      </View>
+                    )}
+                    {/* Existing members */}
+                    {family.members.filter((m) => m.name.trim() || m.editing).map((member, mIdx) => {
+                      const isEditingMember = !!member.editing;
+                      return isEditingMember ? (
+                        /* Member edit mode */
+                        <View
+                          key={member.id}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 8,
+                            marginBottom: 8,
+                          }}
+                        >
+                          <Text style={{ color: '#9CA3AF', fontSize: 14, fontFamily: 'Geist-Regular' }}>
+                            •
+                          </Text>
+                          <TextInput
+                            style={{
+                              flex: 1,
+                              backgroundColor: '#2A2A2A',
+                              borderRadius: 6,
+                              paddingHorizontal: 10,
+                              paddingVertical: 8,
+                              color: '#FFFFFF',
+                              fontSize: 14,
+                              fontFamily: 'Geist-Regular',
+                            }}
+                            value={getMemberDraft(family.id, member.id, member.name)}
+                            onChangeText={(v) => setMemberDraft(family.id, member.id, v)}
+                            onBlur={() => commitMemberDraft(family.id, member.id, member.name)}
+                            onSubmitEditing={() => commitMemberDraft(family.id, member.id, member.name)}
+                            placeholder="Member name"
+                            placeholderTextColor="#6B7280"
+                            autoFocus
+                            returnKeyType="done"
+                          />
+                          <TouchableOpacity
+                            onPress={() =>
+                              confirmDeleteMember(family.id, member.id, member.name)
+                            }
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Trash2 size={16} color="#EF4444" />
+                          </TouchableOpacity>
+                        </View>
+                      ) : (
+                        /* Member view mode */
+                        <View
+                          key={member.id}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 8,
+                            marginBottom: 8,
+                          }}
+                        >
+                          <Text style={{ color: '#9CA3AF', fontSize: 14, fontFamily: 'Geist-Regular' }}>
+                            •
+                          </Text>
+                          <Text
+                            style={{
+                              flex: 1,
+                              color: '#FFFFFF',
+                              fontSize: 14,
+                              fontFamily: 'Geist-Regular',
+                            }}
+                          >
+                            {member.name}
+                          </Text>
+                          <TouchableOpacity
+                            onPress={() => {
+                              setMemberDraft(family.id, member.id, member.name);
+                              onRenameMemberStart(family.id, member.id);
+                            }}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Pencil size={14} color="#9CA3AF" />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() =>
+                              confirmDeleteMember(family.id, member.id, member.name)
+                            }
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Trash2 size={14} color="#EF4444" />
+                          </TouchableOpacity>
+                        </View>
+                      );
+                    })}
+
+                    {showInlineAddMember && (
+                      <TouchableOpacity
+                        onPress={() => onAddMember(family.id)}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 6,
+                          marginTop: 8,
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Plus size={14} color="#3B82F6" />
+                        <Text
+                          style={{
+                            color: '#3B82F6',
+                            fontSize: 13,
+                            fontFamily: 'Geist-Medium',
+                          }}
+                        >
+                          Add Member
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
+              </View>
+            );
+          })
+        )}
+
+        {showLargeAddMember && (
+          <TouchableOpacity
+            onPress={() => {
+              if (lastNamedFamily) {
+                onAddMember(lastNamedFamily.id);
+              }
+            }}
+            disabled={!lastNamedFamily}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+              paddingHorizontal: 16,
+              paddingVertical: 14,
+              borderTopWidth: editedData.families.length > 0 ? 1 : 0,
+              borderTopColor: '#2A2A2A',
+              opacity: lastNamedFamily ? 1 : 0.45,
+            }}
+            activeOpacity={0.7}
+          >
+            <Plus size={16} color={lastNamedFamily ? '#3B82F6' : '#6B7280'} />
+            <Text
+              style={{
+                color: lastNamedFamily ? '#3B82F6' : '#6B7280',
+                fontSize: 14,
+                fontFamily: 'Geist-Medium',
+              }}
+            >
+              Add Member
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Add Family button */}
+        <TouchableOpacity
+          onPress={onAddFamily}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+            paddingHorizontal: 16,
+            paddingVertical: 14,
+            borderTopWidth: editedData.families.length > 0 ? 1 : 0,
+            borderTopColor: '#2A2A2A',
+          }}
+          activeOpacity={0.7}
+        >
+          <Plus size={16} color="#3B82F6" />
+          <Text style={{ color: '#3B82F6', fontSize: 14, fontFamily: 'Geist-Medium' }}>
+            Add Family
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Alternative Focal Person - Editable */}
-      <View className="px-6 mb-8">
-        <EditInfoCard title="ALTERNATIVE FOCAL PERSON">
-          <EditableTextField
-            label="First Name"
-            value={editedData.alternativeFocalPerson.firstName}
-            onChange={(value) => onAlternativeFocalChange('firstName', value)}
-            placeholder="Enter first name"
-          />
-          <EditableTextField
-            label="Last Name"
-            value={editedData.alternativeFocalPerson.lastName}
-            onChange={(value) => onAlternativeFocalChange('lastName', value)}
-            placeholder="Enter last name"
-          />
-          <EditableTextField
-            label="Contact Number"
-            value={editedData.alternativeFocalPerson.contactNo}
-            onChange={(value) => onAlternativeFocalChange('contactNo', value)}
-            placeholder="Enter contact number"
-            keyboardType="phone-pad"
-          />
-          <EditableTextField
-            label="Email"
-            value={editedData.alternativeFocalPerson.email}
-            onChange={(value) => onAlternativeFocalChange('email', value)}
-            placeholder="Enter email address"
-            keyboardType="email-address"
-          />
-        </EditInfoCard>
+      {/* ── OTHER NOTABLE INFORMATION ───────────────────── */}
+      <SectionHeader title="OTHER NOTABLE INFORMATION" />
+      <View style={{ ...cardStyle, paddingVertical: 16 }}>
+        <AutosizeTextarea
+          label=""
+          value={editedData.notableInfo}
+          onChangeText={onNotableInfoChange}
+          placeholder="More info about the neighborhood"
+          minHeight={100}
+          maxHeight={350}
+          showResizeHandle={true}
+        />
       </View>
-    </>
+    </View>
   );
 };

@@ -1,10 +1,11 @@
 import { HapticTab } from '@/components/ui/haptic-tab';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Tabs } from 'expo-router';
+import { useEditMode } from '@/contexts/edit-mode-context';
+import { closeMapStyleSheetIfOpen } from '@/lib/map-style-sheet-controller';
+import { router, Tabs } from 'expo-router';
 import { FileText, Home, Map } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Animated, Dimensions } from 'react-native';
+import { View, Text, Animated, Dimensions, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width: screenWidth } = Dimensions.get('window');
 const tabWidth = screenWidth / 3;
@@ -26,11 +27,44 @@ const TabBarIcon = React.memo(({
 });
 TabBarIcon.displayName = 'TabBarIcon';
 
+// separate label component so we can guarantee color logic (blue when focused,
+// white otherwise). using a render callback avoids style merging issues.
+const TabBarLabel = React.memo(({
+  focused,
+  text,
+}: {
+  focused: boolean;
+  text: string;
+}) => (
+  <View>
+    <Text
+      style={{
+        fontSize: 11,
+        marginTop: 2,
+        marginBottom: 0,
+        fontWeight: '500',
+        color: focused ? '#3B82F6' : '#FFFFFF',
+      }}
+    >
+      {text}
+    </Text>
+  </View>
+));
+TabBarLabel.displayName = 'TabBarLabel';
+
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-  const tintColor = Colors[colorScheme ?? 'light'].tint;
+  const { isEditMode } = useEditMode();
+  const { bottom: safeBottom } = useSafeAreaInsets();
+  const resolvedBottomInset = Platform.OS === 'android' ? Math.max(safeBottom, 12) : safeBottom;
   const [activeTab, setActiveTab] = useState(0);
   const slideAnim = useRef(new Animated.Value(0)).current;
+
+  // Tab bar composed height: fixed content area + system nav inset
+  const TAB_CONTENT_H = 50;
+  // Keep a small baseline inset on Android so the custom bar still clears
+  // transient system UI while edge-to-edge settles after launch/resume.
+  const EXTRA_BOTTOM = 6;
+  const tabBarHeight = TAB_CONTENT_H + resolvedBottomInset + EXTRA_BOTTOM;
 
   useEffect(() => {
     Animated.spring(slideAnim, {
@@ -40,6 +74,12 @@ export default function TabLayout() {
       stiffness: 200,
     }).start();
   }, [activeTab, slideAnim]);
+
+  const navigateWithDrawerClose = (pathname: '/(tabs)' | '/(tabs)/about-neighborhood' | '/(tabs)/reports') => {
+    closeMapStyleSheetIfOpen(() => {
+      router.navigate(pathname);
+    });
+  };
 
   return (
     <View style={{ flex: 1 }}>
@@ -52,16 +92,26 @@ export default function TabLayout() {
           tabBarShowLabel: true,
           lazy: true,
           tabBarHideOnKeyboard: true,
+          tabBarActiveIndicatorStyle: { backgroundColor: 'transparent' },
           tabBarStyle: {
-            paddingTop: 15,
-            height: 90,
+            paddingTop: 8,
+            paddingBottom: resolvedBottomInset + EXTRA_BOTTOM,
+            height: tabBarHeight,
             backgroundColor: '#171717',
-            borderColor: '#94A3B8',
+            borderTopWidth: 0,
+            borderTopColor: 'transparent',
+            elevation: 0,
+            shadowOpacity: 0,
+            shadowColor: 'transparent',
+            shadowOffset: { width: 0, height: 0 },
+            shadowRadius: 0,
           },
           tabBarLabelStyle: {
-            fontSize: 10,
-            marginTop: 4,
-            marginBottom: 4,
+            fontSize: 11,
+            marginTop: 2,
+            marginBottom: 0,
+            fontWeight: '500',
+            color: '#FFFFFF',
           },
         }}
         screenListeners={{
@@ -75,28 +125,65 @@ export default function TabLayout() {
       >
         <Tabs.Screen
           name="index"
+          listeners={{
+            tabPress: (e) => {
+              if (isEditMode) {
+                e.preventDefault();
+                return;
+              }
+
+              e.preventDefault();
+              navigateWithDrawerClose('/(tabs)');
+            },
+          }}
           options={{
             title: 'Map',
             tabBarIcon: ({ focused }) => (
-              <TabBarIcon focused={focused} IconComponent={Map} size={26} />
+              <TabBarIcon focused={isEditMode ? false : focused} IconComponent={Map} size={26} />
+            ),
+            tabBarLabel: ({ focused }) => (
+              <TabBarLabel focused={isEditMode ? false : focused} text="Map" />
             ),
           }}
         />
         <Tabs.Screen
           name="about-neighborhood"
+          listeners={{
+            tabPress: (e) => {
+              e.preventDefault();
+              navigateWithDrawerClose('/(tabs)/about-neighborhood');
+            },
+          }}
           options={{
             title: 'Info',
             tabBarIcon: ({ focused }) => (
               <TabBarIcon focused={focused} IconComponent={Home} size={26} />
             ),
+            tabBarLabel: ({ focused }) => (
+              <TabBarLabel focused={focused} text="Info" />
+            ),
           }}
         />
         <Tabs.Screen
           name="reports"
+          listeners={{
+            tabPress: (e) => {
+              if (isEditMode) {
+                e.preventDefault();
+                return;
+              }
+
+              e.preventDefault();
+              navigateWithDrawerClose('/(tabs)/reports');
+            },
+          }}
           options={{
             title: 'Reports',
             tabBarIcon: ({ focused }) => (
-              <TabBarIcon focused={focused} IconComponent={FileText} size={26} />
+              <TabBarIcon focused={isEditMode ? false : focused} IconComponent={FileText} size={26} />
+            ),
+            tabBarLabel: ({ focused }) => (
+              <TabBarLabel focused={isEditMode ? false : focused} text="Reports" />
             ),
           }}
         />
@@ -104,12 +191,15 @@ export default function TabLayout() {
       <Animated.View
         style={{
           position: 'absolute',
-          bottom: 88,
+          bottom: resolvedBottomInset + TAB_CONTENT_H,
           left: 0,
           width: tabWidth,
-          height: 2,
+          height: 3,
           backgroundColor: '#3B82F6',
           transform: [{ translateX: slideAnim }],
+          borderRadius: 2,
+          zIndex: 999,
+          elevation: 10,
         }}
         pointerEvents="none"
       />

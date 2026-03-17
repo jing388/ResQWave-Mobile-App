@@ -1,7 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Base URL for backend requests.  It can be overridden by setting the
+// Expo public environment variable `EXPO_PUBLIC_API_URL` (e.g. in
+// `.env` or `app.config.js`).
+//
+// When not provided we fall back to a sensible default used during
+// development; update this if you want a different hard‑coded value.
 const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || 'http://172.20.10.4:5000';
+  process.env.EXPO_PUBLIC_API_URL || 'https://resqwave-2awf.onrender.com';
 
 // Storage keys
 const TOKEN_KEY = '@auth_token';

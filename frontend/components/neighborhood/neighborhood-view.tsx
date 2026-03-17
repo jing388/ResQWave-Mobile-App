@@ -1,165 +1,493 @@
 import { NeighborhoodData } from '@/types/neighborhood';
-import React from 'react';
-import { Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { Image, Text, TouchableOpacity, View } from 'react-native';
+import { ChevronDown, ChevronUp, User } from 'lucide-react-native';
 import { formatDate } from '@/utils/formatters';
-import { getHazardLabel } from '@/constants/neighborhood-options';
+import { API_BASE_URL } from '@/lib/api-client';
+
+// All available hazard keys in display order
+const ALL_HAZARD_KEYS = [
+  'strong-water-current',
+  'risk-landslide',
+  'drainage-overflow',
+  'roads-impassable',
+  'electrical-wires',
+];
+
+// Short display labels (without Filipino translations)
+const HAZARD_SHORT_LABELS: Record<string, string> = {
+  'strong-water-current': 'Strong water current',
+  'risk-landslide': 'Risk of landslide or erosion',
+  'drainage-overflow': 'Drainage overflow / canal blockage',
+  'roads-impassable': 'Roads become impassable',
+  'electrical-wires': 'Electrical wires or exposed cables',
+};
 
 interface NeighborhoodViewProps {
   neighborhoodData: NeighborhoodData;
-  DetailRow: React.ComponentType<{
-    label: string;
-    value: string | number;
-    showAvatar?: boolean;
-  }>;
-  InfoCard: React.ComponentType<{
-    title: string;
-    children: React.ReactNode;
-    className?: string;
-  }>;
-  Separator: React.ComponentType;
+  // Kept for backward-compatibility but not used directly in this component
+  DetailRow?: React.ComponentType<any>;
+  InfoCard?: React.ComponentType<any>;
+  Separator?: React.ComponentType;
+  onPrimaryFocalPersonPress?: () => void;
+  onAlternativeFocalPersonPress?: () => void;
 }
+
+// ─────────────────────────────────────────────
+// Internal sub-components
+// ─────────────────────────────────────────────
+
+const SectionHeader = ({ title }: { title: string }) => (
+  <Text
+    style={{
+      color: '#9CA3AF',
+      fontSize: 11,
+      fontFamily: 'Geist-Medium',
+      letterSpacing: 1.5,
+      textTransform: 'uppercase',
+      marginTop: 16,
+      marginBottom: 8,
+    }}
+  >
+    {title}
+  </Text>
+);
+
+const InfoDetailRow = ({
+  label,
+  value,
+  isLast = false,
+}: {
+  label: string;
+  value: string;
+  isLast?: boolean;
+}) => (
+  <View
+    style={{
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      paddingVertical: 14,
+      ...(isLast ? {} : { borderBottomWidth: 1, borderBottomColor: '#2A2A2A' }),
+    }}
+  >
+    <Text
+      style={{
+        color: '#9CA3AF',
+        fontSize: 14,
+        fontFamily: 'Geist-Regular',
+        flex: 1,
+      }}
+    >
+      {label}
+    </Text>
+    <Text
+      style={{
+        color: '#FFFFFF',
+        fontSize: 14,
+        fontFamily: 'Geist-Regular',
+        flex: 1,
+        textAlign: 'right',
+      }}
+    >
+      {value || 'Not specified'}
+    </Text>
+  </View>
+);
+
+const AvatarIcon = ({
+  url,
+  name,
+  size = 44,
+}: {
+  url?: string;
+  name: string;
+  size?: number;
+}) => {
+  const initials = name
+    .split(' ')
+    .map((w) => w[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
+  if (url && typeof url === 'string') {
+    const imgUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
+    return (
+      <Image
+        source={{ uri: imgUrl }}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: '#374151',
+        }}
+      />
+    );
+  }
+
+  return (
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: '#374151',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      {initials ? (
+        <Text
+          style={{
+            color: '#FFFFFF',
+            fontSize: size * 0.35,
+            fontFamily: 'Geist-SemiBold',
+          }}
+        >
+          {initials}
+        </Text>
+      ) : (
+        <User size={size * 0.5} color="#9CA3AF" />
+      )}
+    </View>
+  );
+};
+
+// ─────────────────────────────────────────────
+// Main component
+// ─────────────────────────────────────────────
 
 export const NeighborhoodView: React.FC<NeighborhoodViewProps> = ({
   neighborhoodData,
-  DetailRow,
-  InfoCard,
-  Separator,
+  onPrimaryFocalPersonPress,
+  onAlternativeFocalPersonPress,
 }) => {
+  const [expandedFamilies, setExpandedFamilies] = useState<
+    Record<number, boolean>
+  >({});
+
+  const toggleFamily = (idx: number) =>
+    setExpandedFamilies((prev) => ({ ...prev, [idx]: !prev[idx] }));
+
+  const families = neighborhoodData.familyDetails || [];
+
+  // Build the info rows for "About the Neighborhood", filtering out empty values
+  const aboutRows: { label: string; value: string }[] = [
+    { label: 'Registered At', value: formatDate(neighborhoodData.registeredAt) },
+    { label: 'Terminal ID', value: neighborhoodData.terminalID },
+    ...(neighborhoodData.terminalName
+      ? [{ label: 'Terminal Name', value: neighborhoodData.terminalName }]
+      : []),
+    { label: 'Terminal Address', value: neighborhoodData.terminalAddress },
+    { label: 'Approx. No. of Households', value: neighborhoodData.approxHouseholds },
+    { label: 'Approx. No. of Residents', value: neighborhoodData.approxResidents },
+    {
+      label: 'Floodwater Subsidence Duration',
+      value: neighborhoodData.floodwaterSubsidence,
+    },
+  ];
+
   return (
-    <>
-      {/* Neighborhood Information - Consolidated Section */}
-      <View className="px-6">
-        <InfoCard title="NEIGHBORHOOD INFORMATION">
-          <View className="gap-4 mt-4">
-            {/* Neighborhood ID */}
-            <DetailRow label="Neighborhood ID" value={neighborhoodData.id} />
-            <Separator />
+    <View style={{ paddingHorizontal: 24, backgroundColor: '#171717', paddingBottom: 24 }}>
+      {/* ── ABOUT THE NEIGHBORHOOD ─────────────────────── */}
+      <SectionHeader title="ABOUT THE NEIGHBORHOOD" />
+      <View style={{ backgroundColor: '#1D1D1D', borderRadius: 12, paddingHorizontal: 16 }}>
+        {aboutRows.map((row, idx) => (
+          <InfoDetailRow
+            key={row.label}
+            label={row.label}
+            value={row.value}
+            isLast={idx === aboutRows.length - 1}
+          />
+        ))}
+      </View>
 
-            {/* Registered At */}
-            <DetailRow
-              label="Registered At"
-              value={formatDate(neighborhoodData.registeredAt)}
-            />
-            <Separator />
+      {/* ── EXISTING FLOOD-RELATED HAZARDS ─────────────── */}
+      <SectionHeader title="EXISTING FLOOD-RELATED HAZARDS" />
+      <View style={{ backgroundColor: '#1D1D1D', borderRadius: 12, paddingHorizontal: 16 }}>
+        {ALL_HAZARD_KEYS.map((key, idx) => {
+          const active = neighborhoodData.floodRelatedHazards.includes(key);
+          const isLast = idx === ALL_HAZARD_KEYS.length - 1;
+          return (
+            <View
+              key={key}
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                paddingVertical: 14,
+                ...(isLast
+                  ? {}
+                  : { borderBottomWidth: 1, borderBottomColor: '#2A2A2A' }),
+              }}
+            >
+              <Text
+                style={{
+                  color: '#FFFFFF',
+                  fontSize: 14,
+                  fontFamily: 'Geist-Regular',
+                  flex: 1,
+                }}
+              >
+                {HAZARD_SHORT_LABELS[key] || key}
+              </Text>
+              <Text
+                style={{
+                  color: active ? '#FFFFFF' : '#6B7280',
+                  fontSize: 14,
+                  fontFamily: 'Geist-Medium',
+                  minWidth: 28,
+                  textAlign: 'right',
+                }}
+              >
+                {active ? 'Yes' : 'No'}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
 
-            {/* Terminal ID */}
-            <DetailRow
-              label="Terminal ID"
-              value={neighborhoodData.terminalID}
-            />
-            <Separator />
+      {/* ── OTHER NOTABLE INFORMATION ───────────────────── */}
+      <SectionHeader title="OTHER NOTABLE INFORMATION" />
+      <View
+        style={{
+          backgroundColor: '#1D1D1D',
+          borderRadius: 12,
+          padding: 16,
+        }}
+      >
+        {neighborhoodData.notableInfo.length > 0 ? (
+          <Text
+            style={{
+              color: '#FFFFFF',
+              fontSize: 14,
+              fontFamily: 'Geist-Regular',
+              lineHeight: 22,
+            }}
+          >
+            {neighborhoodData.notableInfo.join('; ')}
+          </Text>
+        ) : (
+          <Text
+            style={{
+              color: '#6B7280',
+              fontSize: 14,
+              fontFamily: 'Geist-Regular',
+              fontStyle: 'italic',
+            }}
+          >
+            No notable information specified.
+          </Text>
+        )}
+      </View>
 
-            {/* Terminal Address */}
-            <DetailRow
-              label="Terminal Address"
-              value={neighborhoodData.terminalAddress}
-            />
-            <Separator />
-
-            {/* Coordinates */}
-            <DetailRow
-              label="Coordinates"
-              value={`${neighborhoodData.coordinates.latitude}, ${neighborhoodData.coordinates.longitude}`}
-            />
-            <Separator />
-
-            {/* Approx. Residents */}
-            <DetailRow
-              label="Approximate Number of Residents"
-              value={neighborhoodData.approxResidents.toLocaleString()}
-            />
-            <Separator />
-
-            {/* Avg. Household Size */}
-            <DetailRow
-              label="Approximate Number of Household"
-              value={`${neighborhoodData.avgHouseholdSize} members`}
-            />
-            <Separator />
-
-            {/* Floodwater Subsidence */}
-            <DetailRow
-              label="Floodwater Subsidence"
-              value={neighborhoodData.floodwaterSubsidence}
-            />
-          </View>
-
-          {/* Flood-Related Hazards */}
-          <View className="mt-6">
-            <Text className="text-text-muted text-sm font-geist-medium spacing-10 tracking-wide mb-3">
-              FLOOD-RELATED HAZARDS
+      {/* ── FAMILY DETAILS ──────────────────────────────── */}
+      <SectionHeader title="FAMILY DETAILS" />
+      <View style={{ backgroundColor: '#1D1D1D', borderRadius: 12, overflow: 'hidden' }}>
+        {families.length === 0 ? (
+          <View style={{ padding: 20, alignItems: 'center' }}>
+            <Text
+              style={{
+                color: '#6B7280',
+                fontSize: 14,
+                fontFamily: 'Geist-Regular',
+                fontStyle: 'italic',
+              }}
+            >
+              No family data registered yet.
             </Text>
-            {neighborhoodData.floodRelatedHazards.map(
-              (hazard: string, index: number) => (
-                <View key={index} className="flex-row mb-2">
-                  <Text className="text-white text-md font-geist-regular mr-2">
-                    •
-                  </Text>
-                  <Text className="text-white text-md font-geist-regular flex-1 leading-6">
-                    {getHazardLabel(hazard)}
-                  </Text>
-                </View>
-              ),
-            )}
           </View>
+        ) : (
+          families.map((family, idx) => {
+            const isExpanded = !!expandedFamilies[idx];
+            const isLast = idx === families.length - 1;
 
-          {/* Other Notable Information */}
-          <View className="mt-4">
-            <Text className="text-text-muted text-sm font-geist-medium spacing-10 tracking-wide mb-3">
-              OTHER NOTABLE INFORMATION
-            </Text>
-            {neighborhoodData.notableInfo.map((info: string, index: number) => (
-              <View key={index} className="flex-row mb-2">
-                <Text className="text-white text-md font-geist-regular mr-2">
-                  •
-                </Text>
-                <Text className="text-white text-md font-geist-regular flex-1 leading-6">
-                  {info}
-                </Text>
+            return (
+              <View
+                key={`${family.familyName}_${idx}`}
+                style={{
+                  borderBottomWidth: isLast ? 0 : 1,
+                  borderBottomColor: '#2A2A2A',
+                }}
+              >
+                <TouchableOpacity
+                  onPress={() => toggleFamily(idx)}
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    paddingHorizontal: 16,
+                    paddingVertical: 14,
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={{
+                      color: '#FFFFFF',
+                      fontSize: 14,
+                      fontFamily: 'Geist-Medium',
+                    }}
+                  >
+                    {family.familyName}
+                  </Text>
+                  {isExpanded ? (
+                    <ChevronUp size={18} color="#9CA3AF" />
+                  ) : (
+                    <ChevronDown size={18} color="#9CA3AF" />
+                  )}
+                </TouchableOpacity>
+
+                {isExpanded && (
+                  <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
+                    {family.members.length > 0 ? (
+                      family.members.map((member, memberIdx) => (
+                        <View
+                          key={`${member}_${memberIdx}`}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 8,
+                            marginBottom: 8,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              color: '#9CA3AF',
+                              fontSize: 14,
+                              fontFamily: 'Geist-Regular',
+                            }}
+                          >
+                            •
+                          </Text>
+                          <Text
+                            style={{
+                              color: '#FFFFFF',
+                              fontSize: 14,
+                              fontFamily: 'Geist-Regular',
+                            }}
+                          >
+                            {member}
+                          </Text>
+                        </View>
+                      ))
+                    ) : (
+                      <Text
+                        style={{
+                          color: '#6B7280',
+                          fontSize: 13,
+                          fontFamily: 'Geist-Regular',
+                          fontStyle: 'italic',
+                        }}
+                      >
+                        No members added yet.
+                      </Text>
+                    )}
+                  </View>
+                )}
               </View>
-            ))}
-          </View>
-        </InfoCard>
+            );
+          })
+        )}
       </View>
 
-      {/* Focal Person Information */}
-      <View className="px-6 mb-2">
-        <InfoCard title="FOCAL PERSON">
-          <View className="gap-4 mt-4">
-            <DetailRow
-              label="Focal Person"
-              value={neighborhoodData.focalPerson.name}
-              showAvatar={true}
-            />
-            <Separator />
-            <DetailRow
-              label="Contact No."
-              value={neighborhoodData.focalPerson.contactNo}
-            />
-            <Separator />
-            <DetailRow
-              label="Email"
-              value={neighborhoodData.focalPerson.email}
-            />
-            <Separator />
-            <DetailRow
-              label="Alternative Focal Person"
-              value={neighborhoodData.alternativeFocalPerson.name}
-              showAvatar={true}
-            />
-            <Separator />
-            <DetailRow
-              label="Contact No."
-              value={neighborhoodData.alternativeFocalPerson.contactNo}
-            />
-            <Separator />
-            <DetailRow
-              label="Email"
-              value={neighborhoodData.alternativeFocalPerson.email}
-            />
-          </View>
-        </InfoCard>
+      {/* ── FOCAL PERSONS ───────────────────────────────── */}
+      <SectionHeader title="FOCAL PERSONS" />
+      <View
+        style={{
+          backgroundColor: '#1D1D1D',
+          borderRadius: 12,
+          padding: 16,
+          gap: 4,
+        }}
+      >
+        {/* Primary focal person */}
+        {neighborhoodData.focalPerson.name ? (
+          <TouchableOpacity
+            onPress={onPrimaryFocalPersonPress}
+            activeOpacity={0.7}
+          >
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 14,
+                paddingVertical: 6,
+              }}
+            >
+              <AvatarIcon
+                url={neighborhoodData.focalPerson.avatar}
+                name={neighborhoodData.focalPerson.name}
+                size={44}
+              />
+              <Text
+                style={{
+                  color: '#FFFFFF',
+                  fontSize: 15,
+                  fontFamily: 'Geist-Regular',
+                  flex: 1,
+                }}
+              >
+                {neighborhoodData.focalPerson.name}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        ) : (
+          <Text
+            style={{
+              color: '#6B7280',
+              fontSize: 14,
+              fontFamily: 'Geist-Regular',
+              fontStyle: 'italic',
+              paddingVertical: 6,
+            }}
+          >
+            No primary focal person assigned.
+          </Text>
+        )}
+
+        {/* Divider */}
+        {neighborhoodData.focalPerson.name &&
+          neighborhoodData.alternativeFocalPerson.name ? (
+          <View
+            style={{ height: 1, backgroundColor: '#2A2A2A', marginVertical: 6 }}
+          />
+        ) : null}
+
+        {/* Alternative focal person */}
+        {neighborhoodData.alternativeFocalPerson.name ? (
+          <TouchableOpacity
+            onPress={onAlternativeFocalPersonPress}
+            activeOpacity={0.7}
+          >
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 14,
+                paddingVertical: 6,
+              }}
+            >
+              <AvatarIcon
+                url={neighborhoodData.alternativeFocalPerson.avatar}
+                name={neighborhoodData.alternativeFocalPerson.name}
+                size={44}
+              />
+              <Text
+                style={{
+                  color: '#FFFFFF',
+                  fontSize: 15,
+                  fontFamily: 'Geist-Regular',
+                  flex: 1,
+                }}
+              >
+                {neighborhoodData.alternativeFocalPerson.name}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        ) : null}
       </View>
-    </>
+    </View>
   );
 };

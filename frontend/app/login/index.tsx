@@ -48,8 +48,6 @@ export default function LoginScreen() {
     // Validate password
     if (!password.trim()) {
       newErrors.password = 'Password is required';
-    } else if (!validatePassword(password)) {
-      newErrors.password = 'Password must be at least 6 characters';
     }
 
     setErrors(newErrors);
@@ -58,7 +56,7 @@ export default function LoginScreen() {
 
   const isFormValid = (): boolean => {
     const identifierValidation = validateIdentifier(identifier);
-    return identifierValidation.isValid && validatePassword(password);
+    return identifierValidation.isValid && password.trim().length > 0;
   };
 
   const handleLogin = async () => {

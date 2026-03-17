@@ -9,16 +9,16 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        geist: ['geist-regular', 'system-ui', 'sans-serif'],
-        'geist-regular': ['geist-regular', 'sans-serif'],
-        'geist-thin': ['geist-thin', 'sans-serif'],
-        'geist-extralight': ['geist-extralight', 'sans-serif'],
-        'geist-light': ['geist-light', 'sans-serif'],
-        'geist-medium': ['geist-medium', 'sans-serif'],
-        'geist-semibold': ['geist-semibold', 'sans-serif'],
-        'geist-bold': ['geist-bold', 'sans-serif'],
-        'geist-extrabold': ['geist-extrabold', 'sans-serif'],
-        'geist-black': ['geist-black', 'sans-serif'],
+        geist: ['geist-regular', 'system-ui', '-apple-system', 'sans-serif'],
+        'geist-regular': ['geist-regular', 'system-ui', '-apple-system', 'sans-serif'],
+        'geist-thin': ['geist-thin', 'system-ui', '-apple-system', 'sans-serif'],
+        'geist-extralight': ['geist-extralight', 'system-ui', '-apple-system', 'sans-serif'],
+        'geist-light': ['geist-light', 'system-ui', '-apple-system', 'sans-serif'],
+        'geist-medium': ['geist-medium', 'system-ui', '-apple-system', 'sans-serif'],
+        'geist-semibold': ['geist-semibold', 'system-ui', '-apple-system', 'sans-serif'],
+        'geist-bold': ['geist-bold', 'system-ui', '-apple-system', 'sans-serif'],
+        'geist-extrabold': ['geist-extrabold', 'system-ui', '-apple-system', 'sans-serif'],
+        'geist-black': ['geist-black', 'system-ui', '-apple-system', 'sans-serif'],
       },
       colors: {
         'default-primary': '#3B82F6',
