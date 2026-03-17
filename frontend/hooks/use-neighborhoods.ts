@@ -32,16 +32,22 @@ export const useNeighborhoods = (): UseNeighborhoodsReturn => {
 
       console.log('🗺️ Fetching neighborhoods data...');
 
-      // Fetch own and other neighborhoods in parallel
+      // Fetch own and other neighborhoods in parallel with error handling
       const [own, others] = await Promise.all([
-        fetchOwnNeighborhood(),
-        fetchOtherNeighborhoods(),
+        fetchOwnNeighborhood().catch((err) => {
+          console.warn('⚠️ Could not fetch own neighborhood:', err.message);
+          return null;
+        }),
+        fetchOtherNeighborhoods().catch((err) => {
+          console.warn('⚠️ Could not fetch other neighborhoods:', err.message);
+          return [];
+        }),
       ]);
 
       console.log('✅ Own neighborhood:', own);
       console.log('✅ Own neighborhood TYPE:', own?.type);
       console.log('✅ Other neighborhoods:', others.length);
-      
+
       if (own) {
         console.log('🔍 [useNeighborhoods] Own marker details:', {
           id: own.id,
@@ -63,6 +69,10 @@ export const useNeighborhoods = (): UseNeighborhoodsReturn => {
     } catch (err: any) {
       console.error('❌ Error fetching neighborhoods:', err);
       setError(err.message || 'Failed to load neighborhoods');
+      // Set empty arrays to prevent crashes
+      setMarkers([]);
+      setOwnNeighborhood(null);
+      setOtherNeighborhoods([]);
     } finally {
       setIsLoading(false);
     }

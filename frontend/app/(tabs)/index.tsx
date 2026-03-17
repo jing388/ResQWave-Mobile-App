@@ -62,7 +62,7 @@ export default function HomeScreen() {
   }
 
   // Fetch neighborhoods from backend
-  const { markers, ownNeighborhood, isLoading } = useNeighborhoods();
+  const { markers, ownNeighborhood, isLoading, error: neighborhoodError } = useNeighborhoods();
 
   const [location, setLocation] = useState<LocationObject | null>(null);
   const [region, setRegion] = useState<Region>({
@@ -176,51 +176,59 @@ export default function HomeScreen() {
   // Request location permission and center map
   useEffect(() => {
     (async () => {
-      if (Platform.OS === 'android') {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-        );
-        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-          console.warn('Permission to access location was denied');
+      try {
+        console.log('📍 Requesting location permissions...');
+
+        if (Platform.OS === 'android') {
+          const granted = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          );
+          if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+            console.warn('⚠️ Permission to access location was denied');
+            return;
+          }
+        }
+
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          console.error('❌ Permission to access location was denied');
           return;
         }
-      }
 
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        console.error('Permission to access location was denied');
-        return;
-      }
+        console.log('✅ Location permission granted');
+        const currentLocation = await Location.getCurrentPositionAsync({});
+        setLocation(currentLocation);
+        console.log('📍 Current location:', currentLocation.coords);
 
-      const currentLocation = await Location.getCurrentPositionAsync({});
-      setLocation(currentLocation);
-
-      // If own neighborhood is available, center on it
-      if (ownNeighborhood) {
+        // If own neighborhood is available, center on it
+        if (ownNeighborhood && typeof ownNeighborhood.latitude === 'number' && typeof ownNeighborhood.longitude === 'number') {
+          console.log('🏠 Centering on own neighborhood:', ownNeighborhood.neighborhoodID);
+          const newRegion = {
+            latitude: ownNeighborhood.latitude,
+            longitude: ownNeighborhood.longitude,
+            latitudeDelta: LATITUDE_DELTA,
+            longitudeDelta: LONGITUDE_DELTA,
+          };
+          setRegion(newRegion);
+          animateToRegionSafe(newRegion);
+        } else {
+          // Otherwise center on user location
+          console.log('📍 Centering on user location');
+          const newRegion = {
+            latitude: currentLocation.coords.latitude,
+            longitude: currentLocation.coords.longitude,
+            latitudeDelta: LATITUDE_DELTA,
+            longitudeDelta: LONGITUDE_DELTA,
+          };
+          setRegion(newRegion);
+          animateToRegionSafe(newRegion);
+        }
+      } catch (error) {
+        console.error('❌ Error in location setup:', error);
+        // Set a default region to prevent crashes
         setRegion({
-          latitude: ownNeighborhood.latitude,
-          longitude: ownNeighborhood.longitude,
-          latitudeDelta: LATITUDE_DELTA,
-          longitudeDelta: LONGITUDE_DELTA,
-        });
-        // Ensure map centers on the user's assigned (own) neighborhood
-        animateToRegionSafe({
-          latitude: ownNeighborhood.latitude,
-          longitude: ownNeighborhood.longitude,
-          latitudeDelta: LATITUDE_DELTA,
-          longitudeDelta: LONGITUDE_DELTA,
-        });
-      } else {
-        // Otherwise center on user location
-        setRegion({
-          latitude: currentLocation.coords.latitude,
-          longitude: currentLocation.coords.longitude,
-          latitudeDelta: LATITUDE_DELTA,
-          longitudeDelta: LONGITUDE_DELTA,
-        });
-        animateToRegionSafe({
-          latitude: currentLocation.coords.latitude,
-          longitude: currentLocation.coords.longitude,
+          latitude: 14.765,
+          longitude: 121.0392,
           latitudeDelta: LATITUDE_DELTA,
           longitudeDelta: LONGITUDE_DELTA,
         });
@@ -255,7 +263,7 @@ export default function HomeScreen() {
           1500 // 1.5 second animation
         );
       };
-      
+
       zoomInSequence();
     }
   }, [freshLogin, ownNeighborhood]);
@@ -471,7 +479,7 @@ export default function HomeScreen() {
               />
             </>
           )}
-          
+
           {/* Dynamically render all markers and their circles */}
           {markers.map((marker) => {
             // Own neighborhood = green, all others = blue (always)
