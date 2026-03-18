@@ -131,7 +131,7 @@ export default function VerificationScreen() {
     let timer: number;
 
     if (resendTime > 0 && isResendDisabled) {
-      timer = window.setTimeout(() => {
+      timer = setTimeout(() => {
         setResendTime((prev) => prev - 1);
       }, 1000);
     } else if (resendTime === 0) {
@@ -139,7 +139,7 @@ export default function VerificationScreen() {
     }
 
     return () => {
-      if (timer) window.clearTimeout(timer);
+      if (timer) clearTimeout(timer);
     };
   }, [resendTime, isResendDisabled]);
 
@@ -280,7 +280,7 @@ export default function VerificationScreen() {
               {/* Resend Code */}
               <View className="items-center mt-2">
                 <Text className="text-text-secondary text-md text-center font-geist-regular">
-                  Didn't receive any code?{' '}
+                  Didn’t receive any code?{' '}
                   <Text
                     className={`${isResendDisabled ? 'text-text-placeholder' : 'text-text-accent underline'}`}
                     onPress={isResendDisabled ? undefined : handleResend}

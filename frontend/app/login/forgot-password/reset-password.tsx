@@ -149,7 +149,7 @@ export default function ResetPasswordScreen() {
                   Reset your password
                 </Text>
                 <Text className="text-text-muted text-md text-center font-geist-regular leading-[2] px-4 mb-[-10]">
-                  Create a new password for your account. Make sure it's strong
+                  Create a new password for your account. Make sure it’s strong
                   and secure.
                 </Text>
               </View>

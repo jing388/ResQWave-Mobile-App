@@ -127,9 +127,9 @@ export async function apiFetch<T = any>(
   }
 
   try {
-    // Add timeout to prevent hanging requests (30 seconds)
+    // Add timeout to prevent hanging requests (60 seconds for Render cold starts)
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
 
     const res = await fetch(url, {
       ...options,
@@ -205,7 +205,7 @@ export async function apiFetch<T = any>(
   } catch (error: any) {
     // Handle timeout errors
     if (error.name === 'AbortError') {
-      console.error('⏱️ Request timeout after 30 seconds');
+      console.error('⏱️ Request timeout after 60 seconds');
       throw new Error('Request timeout. The server took too long to respond. Please try again.');
     }
 
@@ -215,7 +215,8 @@ export async function apiFetch<T = any>(
     console.error('  - API_BASE_URL:', API_BASE_URL);
     console.error('  - Endpoint:', endpoint);
     console.error('  - Error type:', error.constructor.name);
-    console.error('  - Full error:', error);
+    console.error('  - Error name:', error.name);
+    console.error('  - Full error:', JSON.stringify(error, null, 2));
     throw error;
   }
 }

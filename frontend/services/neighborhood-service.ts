@@ -28,8 +28,8 @@ const parseAddress = (
     console.log('📍 parseAddress parsed as JSON:', parsed);
 
     // Handle different coordinate formats
-    let latitude = 0;
-    let longitude = 0;
+    let latitude: number | null = null;
+    let longitude: number | null = null;
 
     // Format 1: coordinates as "lng, lat" string
     if (parsed.coordinates && typeof parsed.coordinates === 'string') {
@@ -43,13 +43,34 @@ const parseAddress = (
     }
     // Format 2: separate latitude and longitude fields
     else if (parsed.latitude !== undefined || parsed.lat !== undefined) {
-      latitude = parseFloat(parsed.latitude || parsed.lat || 0);
-      longitude = parseFloat(parsed.longitude || parsed.lng || 0);
+      const rawLatitude = parsed.latitude ?? parsed.lat;
+      const rawLongitude = parsed.longitude ?? parsed.lng;
+
+      latitude = rawLatitude === null || rawLatitude === undefined
+        ? null
+        : parseFloat(String(rawLatitude));
+      longitude = rawLongitude === null || rawLongitude === undefined
+        ? null
+        : parseFloat(String(rawLongitude));
+    }
+
+    const hasValidCoordinates =
+      typeof latitude === 'number' &&
+      typeof longitude === 'number' &&
+      Number.isFinite(latitude) &&
+      Number.isFinite(longitude) &&
+      Math.abs(latitude) <= 90 &&
+      Math.abs(longitude) <= 180;
+
+    if (!hasValidCoordinates) {
+      console.warn('📍 parseAddress: Invalid coordinates, skipping marker');
+      console.warn('📍 Parsed payload:', parsed);
+      return null;
     }
 
     const result = {
-      latitude,
-      longitude,
+      latitude: latitude as number,
+      longitude: longitude as number,
       address: parsed.address || parsed.formattedAddress || addressStr,
     };
 
@@ -122,7 +143,7 @@ export const fetchOwnNeighborhood = async (): Promise<MarkerData | null> => {
     const data = await apiFetch<BackendOwnNeighborhood>(
       '/neighborhood/map/own',
     );
-    
+
     console.log('🔍 [fetchOwnNeighborhood] Response received:', JSON.stringify(data, null, 2));
 
     const addressData = parseAddress(data.address);
@@ -146,10 +167,10 @@ export const fetchOwnNeighborhood = async (): Promise<MarkerData | null> => {
       focalPersonName: data.focalPerson.name,
       hazards: data.hazards || [],
     };
-    
+
     console.log('✅ [fetchOwnNeighborhood] Created marker with type:', ownMarker.type);
     console.log('✅ [fetchOwnNeighborhood] Neighborhood ID:', ownMarker.neighborhoodID);
-    
+
     return ownMarker;
   } catch (error) {
     console.error('❌ [fetchOwnNeighborhood] Error fetching own neighborhood:', error);
@@ -217,18 +238,18 @@ export const fetchNeighborhoodDetails = async (
     console.log('🌐 [neighborhood-service] fetchNeighborhoodDetails called');
     console.log('🌐 [neighborhood-service] Input neighborhoodId:', neighborhoodId);
     console.log('🌐 [neighborhood-service] Type:', typeof neighborhoodId);
-    
+
     // If neighborhoodId is provided, fetch that specific neighborhood
     // Otherwise, fetch the user's own neighborhood
-    const endpoint = neighborhoodId 
+    const endpoint = neighborhoodId
       ? `/neighborhood/${neighborhoodId}`
       : '/neighborhood/own';
-    
+
     console.log('🔍 [neighborhood-service] Endpoint:', endpoint);
-    
+
     let data: any;
     let isOwnEndpoint = !neighborhoodId;
-    
+
     // Fetch the data
     console.log('📡 [neighborhood-service] Fetching from endpoint:', endpoint);
     data = await apiFetch<any>(endpoint);
@@ -261,7 +282,7 @@ export const fetchNeighborhoodDetails = async (
     let households, residents, floodwaterSubsidence, hazards, otherInfo, focalPersonData;
     let familyDetails: FamilyDetail[] = [];
     let neighborhoodIdValue, createdDate, updatedDate;
-    
+
     if (isOwnEndpoint) {
       // /neighborhood/own endpoint response structure (viewAboutYourNeighborhood)
       households = data.noOfHouseholds || '';
@@ -273,7 +294,7 @@ export const fetchNeighborhoodDetails = async (
       neighborhoodIdValue = data.neighborhoodID;
       createdDate = data.createdDate;
       updatedDate = data.updatedDate;
-      
+
       // focalPerson is already in the correct structure
       focalPersonData = {
         name: data.focalPerson?.name || '',
@@ -297,7 +318,7 @@ export const fetchNeighborhoodDetails = async (
       neighborhoodIdValue = data.id;
       createdDate = data.createdAt;
       updatedDate = data.updatedAt;
-      
+
       // Map focal person data from getNeighborhood structure
       focalPersonData = {
         name: data.focalPerson ? [data.focalPerson.firstName, data.focalPerson.lastName].filter(Boolean).join(' ') : '',
@@ -311,7 +332,7 @@ export const fetchNeighborhoodDetails = async (
         alternativeFPImage: data.focalPerson?.alternativeFPImage || null,
       };
     }
-    
+
     // Calculate average household size from string ranges
     let avgSize = 0;
     if (typeof households === 'string' && households && residents) {
@@ -364,12 +385,12 @@ export const fetchNeighborhoodDetails = async (
     console.error('❌ [neighborhood-service] Error fetching neighborhood details:', error);
     console.error('❌ [neighborhood-service] Error message:', error.message);
     console.error('❌ [neighborhood-service] Error status:', error.status);
-    
+
     // If it's a 404, the neighborhood doesn't exist
     if (error.message && error.message.includes('404')) {
       console.error('❌ [neighborhood-service] Neighborhood not found in database:', neighborhoodId);
     }
-    
+
     return null;
   }
 };
@@ -422,7 +443,7 @@ export const updateNeighborhoodData = async (
     // Include alternative focal person fields if all required fields are provided and non-empty
     if (params.alternativeFocalPerson) {
       const { firstName, lastName, contactNo, email } = params.alternativeFocalPerson;
-      
+
       // Only include if all fields are filled (backend requires all or none)
       if (firstName && lastName && contactNo && email) {
         requestBody.altFirstName = firstName.trim();
@@ -441,7 +462,7 @@ export const updateNeighborhoodData = async (
       method: 'PUT',
       body: JSON.stringify(requestBody),
     });
-    
+
     console.log('✅ [neighborhood-service] Successfully updated neighborhood:', params.neighborhoodId);
   } catch (error) {
     console.error('❌ [neighborhood-service] Error updating neighborhood:', params.neighborhoodId, error);
