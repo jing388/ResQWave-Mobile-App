@@ -1,4 +1,5 @@
 import { BottomButtonContainer } from '@/components/ui/bottom-button-container';
+import { AuthLoadingOverlay } from '@/components/ui/auth-loading-overlay';
 import CustomButton from '@/components/ui/custom-button';
 import { colors } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
@@ -34,6 +35,8 @@ export default function VerificationScreen() {
   const [resendTime, setResendTime] = useState(30);
   const [isResendDisabled, setIsResendDisabled] = useState(true);
   const [verificationSuccess, setVerificationSuccess] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState<number | undefined>(undefined);
+  const [loadingMessage, setLoadingMessage] = useState<string>('Signing in...');
   const scale = useSharedValue(1);
 
   const isCodeComplete = code.length === 6;
@@ -45,9 +48,23 @@ export default function VerificationScreen() {
   const handleVerify = async () => {
     if (!isCodeComplete || isLoading) return;
 
+    let timer: ReturnType<typeof setInterval> | null = null;
+
     try {
+      setLoadingMessage('Signing in...');
+      setLoadingProgress(8);
+      timer = setInterval(() => {
+        setLoadingProgress((prev) => {
+          if (typeof prev !== 'number') return 8;
+          if (prev >= 92) return prev;
+          return prev + 1;
+        });
+      }, 140);
+
       // Call the verify API with tempToken and code
       const response = await verifyCode(tempToken, code);
+
+      setLoadingProgress(100);
 
       // Show success state
       setVerificationSuccess(true);
@@ -99,6 +116,9 @@ export default function VerificationScreen() {
         'Verification Failed',
         error.message || 'Invalid verification code. Please try again.',
       );
+    } finally {
+      if (timer) clearInterval(timer);
+      setTimeout(() => setLoadingProgress(undefined), 250);
     }
   };
 
@@ -109,9 +129,23 @@ export default function VerificationScreen() {
   const handleResend = async () => {
     if (isResendDisabled || isLoading) return;
 
+    let timer: ReturnType<typeof setInterval> | null = null;
+
     try {
+      setLoadingMessage('Resending code...');
+      setLoadingProgress(10);
+      timer = setInterval(() => {
+        setLoadingProgress((prev) => {
+          if (typeof prev !== 'number') return 10;
+          if (prev >= 90) return prev;
+          return prev + 1;
+        });
+      }, 160);
+
       // Call the resend API
       await resendCode(tempToken);
+
+      setLoadingProgress(100);
 
       // Reset timer to 30 seconds
       setResendTime(30);
@@ -124,6 +158,9 @@ export default function VerificationScreen() {
         'Resend Failed',
         error.message || 'Failed to resend code. Please try again.',
       );
+    } finally {
+      if (timer) clearInterval(timer);
+      setTimeout(() => setLoadingProgress(undefined), 250);
     }
   };
 
@@ -318,6 +355,12 @@ export default function VerificationScreen() {
         </BottomButtonContainer>
 
         <StatusBar style="light" />
+
+        <AuthLoadingOverlay
+          visible={isLoading}
+          message={loadingMessage}
+          progress={loadingProgress}
+        />
       </SafeAreaView>
     </TouchableWithoutFeedback>
   );

@@ -1,15 +1,21 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Text } from 'react-native';
+import { ActivityIndicator, Animated, Text, View } from 'react-native';
 
 interface AuthLoadingOverlayProps {
   visible: boolean;
   message: string;
+  progress?: number;
 }
 
-export function AuthLoadingOverlay({ visible, message }: AuthLoadingOverlayProps) {
+export function AuthLoadingOverlay({ visible, message, progress }: AuthLoadingOverlayProps) {
   const [shouldRender, setShouldRender] = useState(visible);
   const opacity = useRef(new Animated.Value(visible ? 1 : 0)).current;
   const scale = useRef(new Animated.Value(visible ? 1 : 0.98)).current;
+
+  const normalizedProgress =
+    typeof progress === 'number' && Number.isFinite(progress)
+      ? Math.max(0, Math.min(100, Math.round(progress)))
+      : undefined;
 
   useEffect(() => {
     if (visible) {
@@ -92,6 +98,39 @@ export function AuthLoadingOverlay({ visible, message }: AuthLoadingOverlayProps
         >
           {message}
         </Text>
+
+        {typeof normalizedProgress === 'number' ? (
+          <View style={{ width: '100%', marginTop: 10 }}>
+            <Text
+              style={{
+                color: '#FFFFFF',
+                fontSize: 12,
+                fontFamily: 'Geist-Medium',
+                textAlign: 'center',
+              }}
+            >
+              {normalizedProgress}%
+            </Text>
+
+            <View
+              style={{
+                height: 6,
+                marginTop: 8,
+                borderRadius: 999,
+                backgroundColor: 'rgba(255, 255, 255, 0.12)',
+                overflow: 'hidden',
+              }}
+            >
+              <View
+                style={{
+                  height: '100%',
+                  width: `${normalizedProgress}%`,
+                  backgroundColor: '#3B82F6',
+                }}
+              />
+            </View>
+          </View>
+        ) : null}
       </Animated.View>
     </Animated.View>
   );

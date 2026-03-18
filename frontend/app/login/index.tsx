@@ -1,5 +1,4 @@
 import { BottomButtonContainer } from '@/components/ui/bottom-button-container';
-import { AuthLoadingOverlay } from '@/components/ui/auth-loading-overlay';
 import CustomButton from '@/components/ui/custom-button';
 import { CustomInput } from '@/components/ui/custom-input';
 import { colors } from '@/constants/colors';
@@ -214,11 +213,6 @@ export default function LoginScreen() {
         </KeyboardAvoidingView>
 
         <StatusBar style="light" />
-
-        <AuthLoadingOverlay
-          visible={isLoading}
-          message="Signing in..."
-        />
       </SafeAreaView>
     </TouchableWithoutFeedback>
   );

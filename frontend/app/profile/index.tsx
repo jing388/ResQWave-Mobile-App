@@ -58,6 +58,7 @@ export default function ProfileScreen() {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [isImageViewerVisible, setIsImageViewerVisible] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [signOutPercent, setSignOutPercent] = useState<number | undefined>(undefined);
   const [isClosing, setIsClosing] = useState(false);
   const signOutProgress = useSharedValue(1);
   const signOutButtonScale = useSharedValue(1);
@@ -372,11 +373,14 @@ export default function ProfileScreen() {
 
   const performSignOut = async () => {
     try {
+      setSignOutPercent(35);
       const { authService } = await import('@/services/auth-service');
       await authService.logout();
+      setSignOutPercent(90);
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
+      setSignOutPercent(100);
       router.replace('/');
     }
   };
@@ -384,6 +388,7 @@ export default function ProfileScreen() {
   const handleSignOut = () => {
     if (isSigningOut) return;
 
+    setSignOutPercent(6);
     setIsSigningOut(true);
     // Animate press feedback, then fade the screen before logout.
     signOutButtonScale.value = withTiming(0.97, {
@@ -747,6 +752,7 @@ export default function ProfileScreen() {
         <AuthLoadingOverlay
           visible={isSigningOut}
           message="Signing out..."
+          progress={signOutPercent}
         />
       </View>
     </BottomSheetModalProvider>
