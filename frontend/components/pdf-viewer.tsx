@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet, Alert, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, Alert, TouchableOpacity, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { X, Download, Share2 } from 'lucide-react-native';
+import { AuthLoadingOverlay } from '@/components/ui/auth-loading-overlay';
 
 interface PDFViewerProps {
   pdfUrl: string;
@@ -318,12 +319,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, onClose, title = '
     }
 
     if (loading) {
-      return (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3B82F6" />
-          <Text style={styles.loadingText}>Loading PDF...</Text>
-        </View>
-      );
+      return <View style={styles.loadingContainer} />;
     }
 
     if (localUri) {
@@ -465,12 +461,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, onClose, title = '
             }
           }}
           startInLoadingState={false}
-          renderLoading={() => (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#3B82F6" />
-              <Text style={styles.loadingText}>Loading PDF...</Text>
-            </View>
-          )}
+          renderLoading={() => <View style={styles.loadingContainer} />}
         />
       );
     }
@@ -523,6 +514,11 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, onClose, title = '
       <View style={styles.content}>
         {renderPDF()}
       </View>
+
+      <AuthLoadingOverlay
+        visible={loading}
+        message="Loading PDF..."
+      />
     </View>
   );
 };

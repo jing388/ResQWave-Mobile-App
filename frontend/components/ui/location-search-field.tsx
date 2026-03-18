@@ -1,6 +1,6 @@
 import { ChevronDown, MapPin, Search, X } from 'lucide-react-native';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Text, TouchableOpacity, View, TextInput, Pressable, Keyboard, Animated, useWindowDimensions } from 'react-native';
+import { Text, TouchableOpacity, View, TextInput, Pressable, Keyboard, useWindowDimensions } from 'react-native';
 import { FlatList } from 'react-native-gesture-handler';
 
 interface LocationItem {
@@ -37,8 +37,6 @@ export function SearchField({
   const [dropdownTop, setDropdownTop] = useState(0);
   const textInputRef = useRef<TextInput>(null);
   const containerRef = useRef<View>(null);
-  const animatedScale = useRef(new Animated.Value(1)).current;
-  const animatedOpacity = useRef(new Animated.Value(1)).current;
 
   const maxDropdownHeight = useMemo(() => {
     // Keep the list above the keyboard and still allow scrolling.
@@ -51,39 +49,6 @@ export function SearchField({
       setDropdownTop(y + h + 4);
     });
   };
-
-  // Animate when search bar is tapped
-  useEffect(() => {
-    if (isOpen) {
-      // Pulse animation when opening
-      Animated.sequence([
-        Animated.parallel([
-          Animated.timing(animatedScale, {
-            toValue: 0.98,
-            duration: 100,
-            useNativeDriver: true,
-          }),
-          Animated.timing(animatedOpacity, {
-            toValue: 0.9,
-            duration: 100,
-            useNativeDriver: true,
-          }),
-        ]),
-        Animated.parallel([
-          Animated.timing(animatedScale, {
-            toValue: 1,
-            duration: 100,
-            useNativeDriver: true,
-          }),
-          Animated.timing(animatedOpacity, {
-            toValue: 1,
-            duration: 100,
-            useNativeDriver: true,
-          }),
-        ]),
-      ]).start();
-    }
-  }, [isOpen, animatedScale, animatedOpacity]);
 
   useEffect(() => {
     const showSub = Keyboard.addListener('keyboardDidShow', (event) => {
@@ -193,15 +158,11 @@ export function SearchField({
         />
       )}
 
-      {/* Unified Search Bar with integrated dropdown button - with animation */}
-      <Animated.View
-        style={{
-          transform: [{ scale: animatedScale }],
-          opacity: animatedOpacity,
-        }}
-      >
+      {/* Unified Search Bar with integrated dropdown button */}
+      <View>
         <TouchableOpacity
-          className={`flex-row items-center bg-default-black rounded-xl px-4 py-3 ${className}`}
+          className={`flex-row items-center bg-default-black rounded-xl px-4 ${className}`}
+          style={{ height: 52 }}
           onPress={handleSearchBarPress}
           activeOpacity={0.7}
         >
@@ -256,7 +217,7 @@ export function SearchField({
           />
         </TouchableOpacity>
       </TouchableOpacity>
-      </Animated.View>
+      </View>
 
       {/* Absolute positioned Dropdown List */}
       {isOpen && filteredLocations.length > 0 && (

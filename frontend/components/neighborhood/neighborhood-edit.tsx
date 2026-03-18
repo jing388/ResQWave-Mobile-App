@@ -5,7 +5,7 @@ import { EditedData, Family, NeighborhoodData } from '@/types/neighborhood';
 import { NeighborhoodDropdownOptions } from '@/constants/neighborhood-options';
 import React, { useState } from 'react';
 import { Alert, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { ChevronDown, ChevronUp, Pencil, Trash2, Plus } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, Pencil, Trash2, Plus, Check } from 'lucide-react-native';
 
 // ─────────────────────────────────────────────
 // Props
@@ -163,6 +163,10 @@ export const NeighborhoodEdit: React.FC<NeighborhoodEditProps> = ({
     .reverse()
     .find((family) => !family.editing && family.name.trim().length > 0);
 
+  const isAnyFamilyEditing = editedData.families.some(
+    (f) => f.editing || f.members.some((m) => m.editing),
+  );
+
   const cleanupEmptyEntries = () => {
     const familiesToDelete: string[] = [];
     const membersToDelete: Array<{ familyId: string; memberId: string }> = [];
@@ -241,7 +245,11 @@ export const NeighborhoodEdit: React.FC<NeighborhoodEditProps> = ({
         paddingBottom: 40,
       }}
       onStartShouldSetResponderCapture={() => {
-        cleanupEmptyEntries();
+        // Only cleanup empty entries when NOT in editing mode
+        // This prevents interfering with text input focus
+        if (!isAnyFamilyEditing) {
+          cleanupEmptyEntries();
+        }
         return false;
       }}
     >
@@ -321,6 +329,8 @@ export const NeighborhoodEdit: React.FC<NeighborhoodEditProps> = ({
                         flex: 1,
                         backgroundColor: '#2A2A2A',
                         borderRadius: 8,
+                        borderWidth: 2,
+                        borderColor: '#3B82F6',
                         paddingHorizontal: 12,
                         paddingVertical: 10,
                         color: '#FFFFFF',
@@ -329,13 +339,18 @@ export const NeighborhoodEdit: React.FC<NeighborhoodEditProps> = ({
                       }}
                       value={getDraft(family.id, family.name)}
                       onChangeText={(v) => setDraft(family.id, v)}
-                      onBlur={() => commitDraft(family.id, family.name)}
                       onSubmitEditing={() => commitDraft(family.id, family.name)}
                       placeholder="Family name"
                       placeholderTextColor="#6B7280"
                       autoFocus
                       returnKeyType="done"
                     />
+                    <TouchableOpacity
+                      onPress={() => commitDraft(family.id, family.name)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Check size={18} color="#3B82F6" strokeWidth={3} />
+                    </TouchableOpacity>
                     <TouchableOpacity
                       onPress={() => confirmDeleteFamily(family.id, family.name)}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -393,8 +408,8 @@ export const NeighborhoodEdit: React.FC<NeighborhoodEditProps> = ({
                   </TouchableOpacity>
                 )}
 
-                {/* Member list (expanded, not editing header) */}
-                {isExpanded && !isEditing && (
+                {/* Member list (expanded) remains visible even while renaming family */}
+                {isExpanded && (
                   <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
                     {/* Show reminder if no named members */}
                     {family.members.filter((m) => m.name.trim()).length === 0 && (
@@ -442,6 +457,8 @@ export const NeighborhoodEdit: React.FC<NeighborhoodEditProps> = ({
                               flex: 1,
                               backgroundColor: '#2A2A2A',
                               borderRadius: 6,
+                              borderWidth: 2,
+                              borderColor: '#3B82F6',
                               paddingHorizontal: 10,
                               paddingVertical: 8,
                               color: '#FFFFFF',
@@ -450,13 +467,18 @@ export const NeighborhoodEdit: React.FC<NeighborhoodEditProps> = ({
                             }}
                             value={getMemberDraft(family.id, member.id, member.name)}
                             onChangeText={(v) => setMemberDraft(family.id, member.id, v)}
-                            onBlur={() => commitMemberDraft(family.id, member.id, member.name)}
                             onSubmitEditing={() => commitMemberDraft(family.id, member.id, member.name)}
                             placeholder="Member name"
                             placeholderTextColor="#6B7280"
                             autoFocus
                             returnKeyType="done"
                           />
+                          <TouchableOpacity
+                            onPress={() => commitMemberDraft(family.id, member.id, member.name)}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Check size={16} color="#3B82F6" strokeWidth={3} />
+                          </TouchableOpacity>
                           <TouchableOpacity
                             onPress={() =>
                               confirmDeleteMember(family.id, member.id, member.name)

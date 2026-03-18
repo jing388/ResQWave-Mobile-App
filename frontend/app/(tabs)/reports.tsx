@@ -2,6 +2,7 @@ import { ReportCardContainer } from '@/components/reports/report-card-container'
 import { Dropdown } from '@/components/ui/dropdown';
 import { PDFViewer } from '@/components/pdf-viewer';
 import { RefreshNotification } from '@/components/ui/refresh-notification';
+import { AuthLoadingOverlay } from '@/components/ui/auth-loading-overlay';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChevronDown, Search, RefreshCw } from 'lucide-react-native';
 import React, { useState, useEffect } from 'react';
@@ -14,7 +15,6 @@ import {
   TouchableOpacity,
   View,
   Modal,
-  ActivityIndicator,
 } from 'react-native';
 import Collapsible from 'react-native-collapsible';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -425,14 +425,7 @@ export default function ReportsScreen() {
 
         {/* Reports List */}
         <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-          {loading || generatingPDF ? (
-            <View className="flex-1 items-center justify-center py-20">
-              <ActivityIndicator size="large" color="#3B82F6" />
-              <Text className="text-gray-400 mt-4 font-geist-regular">
-                {generatingPDF ? 'Generating PDF...' : 'Loading reports...'}
-              </Text>
-            </View>
-          ) : error ? (
+          {loading || generatingPDF ? null : error ? (
             <View className="flex-1 items-center justify-center py-20">
               <Text className="text-red-400 text-center font-geist-regular mb-4">
                 {error}
@@ -551,6 +544,11 @@ export default function ReportsScreen() {
           )}
         </ScrollView>
       </View>
+
+      <AuthLoadingOverlay
+        visible={loading || generatingPDF}
+        message={generatingPDF ? 'Generating PDF...' : 'Loading reports...'}
+      />
 
       {/* PDF Viewer Modal */}
       <Modal

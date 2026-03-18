@@ -69,10 +69,10 @@ export const useNeighborhoods = (): UseNeighborhoodsReturn => {
     } catch (err: any) {
       console.error('❌ Error fetching neighborhoods:', err);
       setError(err.message || 'Failed to load neighborhoods');
-      // Set empty arrays to prevent crashes
-      setMarkers([]);
-      setOwnNeighborhood(null);
-      setOtherNeighborhoods([]);
+      // Keep existing data so transient auth/network issues do not blank the map.
+      setMarkers((previous) => previous);
+      setOwnNeighborhood((previous) => previous);
+      setOtherNeighborhoods((previous) => previous);
     } finally {
       setIsLoading(false);
     }
