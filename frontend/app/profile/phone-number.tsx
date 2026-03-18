@@ -1,6 +1,6 @@
 import CustomButton from '@/components/ui/custom-button';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import OtpField from '@/components/auth/otp-field';
+import { requestNumberChangeOTP, verifyNumberChangeOTP } from '@/services/user-service';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
@@ -20,8 +20,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function EditPhoneScreen() {
   const insets = useSafeAreaInsets();
-  const colorScheme = useColorScheme() || 'light';
-  const colors = Colors[colorScheme];
   const params = useLocalSearchParams();
 
   const [phoneNumber, setPhoneNumber] = useState(
@@ -29,47 +27,73 @@ export default function EditPhoneScreen() {
   );
   const [verificationCode, setVerificationCode] = useState('');
   const [codeSent, setCodeSent] = useState(false);
+  const [otpKey, setOtpKey] = useState(0);
+  const [isSending, setIsSending] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [error, setError] = useState('');
   const [isFocused, setIsFocused] = useState({
     phone: false,
-    code: false,
   });
 
   const handleGoBack = () => {
     router.back();
   };
 
-  const isPhoneValid = phoneNumber.trim().length >= 10;
+  const digitsOnly = phoneNumber.replace(/\D+/g, '');
+  const isPhoneValid =
+    (/^0\d{10}$/.test(digitsOnly) || /^9\d{9}$/.test(digitsOnly)) &&
+    digitsOnly.length >= 10;
   const isFormValid = isPhoneValid && verificationCode.length === 6;
 
-  const handleSendCode = () => {
-    if (isPhoneValid) {
-      // TODO: Send verification code to new phone number
-      console.log('Sending code to:', phoneNumber);
+  const getErrorMessage = (err: unknown): string => {
+    if (err instanceof Error) return err.message;
+    if (typeof err === 'string') return err;
+    return 'Something went wrong. Please try again.';
+  };
+
+  const handlePhoneChange = (value: string) => {
+    const v = value.replace(/\D+/g, '').slice(0, 11);
+    setPhoneNumber(v);
+    if (error) setError('');
+  };
+
+  const handleSendCode = async () => {
+    if (!isPhoneValid || isSending) return;
+    setError('');
+    setIsSending(true);
+    try {
+      await requestNumberChangeOTP(phoneNumber);
       setCodeSent(true);
-      Alert.alert(
-        'Success',
-        'Verification code has been sent to your phone number.',
-      );
+      setVerificationCode('');
+      setOtpKey((k) => k + 1);
+      Alert.alert('Success', 'Verification code has been sent to your phone number.');
+    } catch (err) {
+      const msg = getErrorMessage(err);
+      setError(msg);
+      Alert.alert('Error', msg);
+    } finally {
+      setIsSending(false);
     }
   };
 
-  const handleSave = () => {
-    if (isFormValid) {
-      // TODO: Verify code and update phone number in backend
-      console.log('Verifying code:', verificationCode);
-      console.log('Updating phone to:', phoneNumber);
-
-      // Simulate verification
-      Alert.alert(
-        'Success',
-        'Your phone number has been updated successfully!',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.back(),
-          },
-        ],
-      );
+  const handleSave = async () => {
+    if (!isFormValid || isVerifying) return;
+    setError('');
+    setIsVerifying(true);
+    try {
+      await verifyNumberChangeOTP(verificationCode);
+      Alert.alert('Success', 'Your phone number has been updated successfully!', [
+        {
+          text: 'OK',
+          onPress: () => router.back(),
+        },
+      ]);
+    } catch (err) {
+      const msg = getErrorMessage(err);
+      setError(msg);
+      Alert.alert('Error', msg);
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -155,7 +179,7 @@ export default function EditPhoneScreen() {
                   </View>
                   <TextInput
                     value={phoneNumber}
-                    onChangeText={setPhoneNumber}
+                    onChangeText={handlePhoneChange}
                     onFocus={() =>
                       setIsFocused((prev) => ({ ...prev, phone: true }))
                     }
@@ -167,20 +191,25 @@ export default function EditPhoneScreen() {
                     keyboardType="phone-pad"
                     className="flex-1 text-gray-50 text-base h-full ml-3 font-geist-regular py-0 pr-3"
                     maxLength={11}
-                    editable={!codeSent}
+                    editable={!codeSent && !isSending && !isVerifying}
                   />
                 </View>
+                {!!error && (
+                  <Text className="text-red-400 text-xs mt-2 font-geist-regular">
+                    {error}
+                  </Text>
+                )}
               </View>
 
               {/* Send Code Button */}
               {!codeSent && (
                 <CustomButton
-                  title="Send Verification Code"
+                  title={isSending ? 'Sending...' : 'Send Verification Code'}
                   onPress={handleSendCode}
                   variant={isPhoneValid ? 'gradient-accent' : 'primary'}
                   size="lg"
                   width="full"
-                  disabled={!isPhoneValid}
+                  disabled={!isPhoneValid || isSending || isVerifying}
                 />
               )}
 
@@ -191,23 +220,20 @@ export default function EditPhoneScreen() {
                     <Text className="text-gray-400 text-sm mb-2 font-geist-medium">
                       Verification Code
                     </Text>
-                    <View
-                      className={`bg-gray-800 rounded-xl border h-16 px-4 justify-center ${isFocused.code ? 'border-blue-500' : 'border-gray-600'}`}
-                    >
-                      <TextInput
+                    <View className="w-full">
+                      <OtpField
+                        key={otpKey}
                         value={verificationCode}
-                        onChangeText={setVerificationCode}
-                        onFocus={() =>
-                          setIsFocused((prev) => ({ ...prev, code: true }))
-                        }
-                        onBlur={() =>
-                          setIsFocused((prev) => ({ ...prev, code: false }))
-                        }
-                        placeholder="Enter 6-digit code"
-                        placeholderTextColor="#6B7280"
-                        keyboardType="number-pad"
-                        className="text-gray-50 text-base font-geist-regular"
-                        maxLength={6}
+                        onChange={(text) => {
+                          const v = text.replace(/\D+/g, '').slice(0, 6);
+                          setVerificationCode(v);
+                          if (error) setError('');
+                        }}
+                        onFilled={(text) => {
+                          const v = text.replace(/\D+/g, '').slice(0, 6);
+                          setVerificationCode(v);
+                        }}
+                        disabled={isSending || isVerifying}
                       />
                     </View>
                   </View>
@@ -215,9 +241,10 @@ export default function EditPhoneScreen() {
                   <TouchableOpacity
                     onPress={handleSendCode}
                     className="self-center"
+                    disabled={isSending || isVerifying}
                   >
                     <Text className="text-blue-500 text-sm font-geist-medium">
-                      Resend Code
+                      {isSending ? 'Resending...' : 'Resend Code'}
                     </Text>
                   </TouchableOpacity>
                 </>
@@ -238,12 +265,12 @@ export default function EditPhoneScreen() {
               }}
             >
               <CustomButton
-                title="Save Changes"
+                title={isVerifying ? 'Verifying...' : 'Save Changes'}
                 onPress={handleSave}
                 variant={isFormValid ? 'gradient-accent' : 'primary'}
                 size="lg"
                 width="full"
-                disabled={!isFormValid}
+                disabled={!isFormValid || isSending || isVerifying}
               />
             </View>
           )}

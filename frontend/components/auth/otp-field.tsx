@@ -60,7 +60,7 @@ const OtpField: React.FC<OtpFieldProps> = ({
           backgroundColor: colors.background.secondary,
         },
       }}
-      // value and editable props are not supported by OtpInput
+    // value and editable props are not supported by OtpInput
     />
   );
 };

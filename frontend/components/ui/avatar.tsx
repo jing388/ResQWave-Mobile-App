@@ -30,30 +30,30 @@ const innerSizeClasses = {
   xl: 'w-28 h-28' // 112px inner
 };
 
-export function Avatar({ 
-  size = 'md', 
+export function Avatar({
+  size = 'md',
   onPress,
   className = "",
   imageSource
 }: AvatarProps) {
   return (
-    <TouchableOpacity 
+    <TouchableOpacity
       className={`${sizeClasses[size]} rounded-xl justify-center items-center ${className}`}
       onPress={onPress}
       activeOpacity={0.7}
     >
       <View className={`${innerSizeClasses[size]} rounded-xl justify-center items-center overflow-hidden bg-blue-500`}>
         {imageSource ? (
-          <Image 
+          <Image
             source={imageSource}
             className={`${innerSizeClasses[size]} rounded-xl`}
             resizeMode="cover"
           />
         ) : (
-          <IconSymbol 
-            name="person.fill" 
-            size={iconSizes[size]} 
-            color="#FFFFFF" 
+          <IconSymbol
+            name="person.fill"
+            size={iconSizes[size]}
+            color="#FFFFFF"
           />
         )}
       </View>

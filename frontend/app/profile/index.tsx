@@ -248,7 +248,7 @@ export default function ProfileScreen() {
   const handleTakePhoto = async () => {
     try {
       setUploadingImage(true);
-      
+
       // Check camera permissions first
       const permissionResult = await ImagePicker.getCameraPermissionsAsync();
       if (!permissionResult.granted) {
@@ -291,7 +291,7 @@ export default function ProfileScreen() {
   const handleChoosePhoto = async () => {
     try {
       setUploadingImage(true);
-      
+
       // Check media library permissions first
       const permissionResult = await ImagePicker.getMediaLibraryPermissionsAsync();
       if (!permissionResult.granted) {
@@ -411,343 +411,343 @@ export default function ProfileScreen() {
   return (
     <BottomSheetModalProvider>
       <View style={{ flex: 1 }}>
-      <Animated.View style={[{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)' }, signOutStyle, animatedLayoutStyle]}>
-        <StatusBar
-          barStyle="light-content"
-          backgroundColor="transparent"
-          translucent
-        />
-
-        {/* Backdrop - tap to close */}
-        <TouchableOpacity
-          style={{ flex: 1 }}
-          activeOpacity={1}
-          onPress={handleGoBack}
-        />
-
-        {/* Profile Content - slides from right */}
-        <View
-          style={{
-            position: 'absolute',
-            top: 0,
-            right: 0,
-            bottom: 0,
-            width: '100%',
-            shadowOffset: { width: -2, height: 0 },
-            shadowOpacity: 0.25,
-            shadowRadius: 10,
-            elevation: 5,
-          }}
-        >
-          {/* Gradient Background */}
-          <LinearGradient
-            colors={['#1F2937', '#171717']}
-            className="absolute inset-0"
+        <Animated.View style={[{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)' }, signOutStyle, animatedLayoutStyle]}>
+          <StatusBar
+            barStyle="light-content"
+            backgroundColor="transparent"
+            translucent
           />
 
-          {/* Content */}
-          <ScrollView
-            className="flex-1 px-5"
-            contentContainerStyle={{ paddingBottom: 120 }}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                tintColor="#3B82F6"
-                colors={['#3B82F6']}
-              />
-            }
-          >
-            {/* Back Button and Title */}
-            <View style={{ paddingTop: insets.top + 16 }}>
-              <View className="flex-row items-center justify-between mb-4">
-                <TouchableOpacity
-                  onPress={handleGoBack}
-                  className="p-2"
-                  activeOpacity={0.7}
-                >
-                  <ChevronLeft size={24} color="#F9FAFB" />
-                </TouchableOpacity>
-                <Text className="text-white text-xl font-geist-semibold">
-                  Profile
-                </Text>
-                <View style={{ width: 40 }} />
-              </View>
+          {/* Backdrop - tap to close */}
+          <TouchableOpacity
+            style={{ flex: 1 }}
+            activeOpacity={1}
+            onPress={handleGoBack}
+          />
 
-              <View className="items-center mb-8">
-                {loading ? (
-                  <View className="w-24 h-24 bg-gray-600 rounded-full animate-pulse" />
-                ) : (
-                  <View className="relative w-32 h-32">
-                    <TouchableOpacity
-                      onPress={handleAvatarPress}
-                      activeOpacity={0.85}
-                      className="w-32 h-32 rounded-xl overflow-hidden"
-                    >
-                      <Image
-                        source={
-                          userData?.photo && typeof userData.photo === 'string'
-                            ? { uri: userData.photo }
-                            : require('@/assets/images/sample-profile-picture.jpg')
-                        }
-                        className="w-full h-full"
-                        resizeMode="cover"
-                      />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      className="bg-default-primary absolute -bottom-1 -right-1 w-10 h-10 rounded-full items-center justify-center"
-                      onPress={handleCameraButtonPress}
-                      activeOpacity={0.8}
-                      disabled={uploadingImage}
-                    >
-                      {uploadingImage ? (
-                        <View className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <Camera size={20} color="white" />
-                      )}
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </View>
-            </View>
-
-            {/* Personal Information */}
-            <View className="mb-6">
-              <Text className="text-text-muted text-sm font-geist-medium mb-4 pl-2 spacing-10 tracking-wide">
-                PERSONAL INFORMATION
-              </Text>
-
-              {/* Full Name */}
-              <TouchableOpacity
-                onPress={handleEditName}
-                className="bg-gray-800 p-4 rounded-xl mb-3 border border-gray-600"
-                activeOpacity={0.7}
-              >
-                <View className="flex-row justify-between items-center">
-                  <View className="flex-1">
-                    <Text className="text-gray-400 text-sm mb-1 font-geist-regular">
-                      Name
-                    </Text>
-                    <Text className="text-gray-50 text-base font-geist-medium">
-                      {userData ? `${userData.firstName} ${userData.lastName}` : 'Loading...'}
-                    </Text>
-                  </View>
-                  <ChevronRight size={20} color="#9CA3AF" />
-                </View>
-              </TouchableOpacity>
-
-              {/* Phone Number */}
-              <TouchableOpacity
-                onPress={handleEditPhone}
-                className="bg-gray-800 p-4 rounded-xl mb-3 border border-gray-600"
-                activeOpacity={0.7}
-              >
-                <View className="flex-row justify-between items-center">
-                  <View className="flex-1">
-                    <Text className="text-gray-400 text-sm mb-1 font-geist-regular">
-                      Phone Number
-                    </Text>
-                    <Text className="text-gray-50 text-base font-geist-medium">
-                      {userData?.phone || 'Loading...'}
-                    </Text>
-                  </View>
-                  <ChevronRight size={20} color="#9CA3AF" />
-                </View>
-              </TouchableOpacity>
-
-              {/* Email */}
-              <TouchableOpacity
-                onPress={handleEditEmail}
-                className="bg-gray-800 p-4 rounded-xl mb-3 border border-gray-600"
-                activeOpacity={0.7}
-              >
-                <View className="flex-row justify-between items-center">
-                  <View className="flex-1">
-                    <Text className="text-gray-400 text-sm mb-1 font-geist-regular">
-                      Email
-                    </Text>
-                    <Text className="text-gray-50 text-base font-geist-medium">
-                      {userData?.email || 'Loading...'}
-                    </Text>
-                  </View>
-                  <ChevronRight size={20} color="#9CA3AF" />
-                </View>
-              </TouchableOpacity>
-            </View>
-
-            {/* Password Section */}
-            <View className="mb-8">
-              <Text className="text-text-muted text-sm font-geist-medium mb-4 pl-2 spacing-10 tracking-wide">
-                SECURITY
-              </Text>
-
-              <TouchableOpacity
-                onPress={handleChangePassword}
-                className="bg-gray-800 p-4 rounded-xl mb-3 border border-gray-600"
-                activeOpacity={0.7}
-              >
-                <View className="flex-row items-center">
-                  <View className="w-10 h-10 rounded-lg items-center justify-center mr-3 bg-default-primary/20">
-                    <Lock size={20} color={'#3B82F6'} />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-gray-50 text-base font-geist-medium">
-                      Password
-                    </Text>
-                    <Text className="text-gray-400 text-xs mt-1 font-geist-regular">
-                      Last changed: {userData?.lastPasswordChange || 'Unknown'}
-                    </Text>
-                  </View>
-                  <ChevronRight size={20} color="#9CA3AF" />
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={handleViewLogs}
-                className="bg-gray-800 p-4 rounded-xl mb-3 border border-gray-600"
-                activeOpacity={0.7}
-              >
-                <View className="flex-row items-center">
-                  <View className="w-10 h-10 rounded-lg items-center justify-center mr-3 bg-default-primary/20">
-                    <Logs size={20} color={'#3B82F6'} />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-gray-50 text-base font-geist-medium">
-                      Logs
-                    </Text>
-                    <Text className="text-gray-400 text-xs mt-1 font-geist-regular">
-                      Last action: {userData?.lastPasswordChange || 'Unknown'}
-                    </Text>
-                  </View>
-                  <ChevronRight size={20} color="#9CA3AF" />
-                </View>
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
-
-          {/* Fixed Bottom Sign Out Button */}
+          {/* Profile Content - slides from right */}
           <View
             style={{
-              padding: 20,
-              paddingBottom: Platform.OS === 'ios' ? insets.bottom + 20 : 20,
               position: 'absolute',
-              bottom: 0,
-              left: 0,
+              top: 0,
               right: 0,
+              bottom: 0,
+              width: '100%',
+              shadowOffset: { width: -2, height: 0 },
+              shadowOpacity: 0.25,
+              shadowRadius: 10,
+              elevation: 5,
             }}
           >
-            <Animated.View style={signOutButtonStyle}>
-              <TouchableOpacity
-                onPress={handleSignOut}
-                className="bg-gray-800 p-4 rounded-xl border border-gray-600"
-                activeOpacity={0.7}
-                disabled={isSigningOut}
-              >
-                <View className="flex-row items-center justify-center">
-                  {isSigningOut && (
-                    <ActivityIndicator size="small" color="#EF4444" style={{ marginRight: 10 }} />
-                  )}
-                  <Text className="text-red-500 text-base font-geist-medium text-center">
-                    {isSigningOut ? 'Signing Out...' : 'Sign Out'}
+            {/* Gradient Background */}
+            <LinearGradient
+              colors={['#1F2937', '#171717']}
+              className="absolute inset-0"
+            />
+
+            {/* Content */}
+            <ScrollView
+              className="flex-1 px-5"
+              contentContainerStyle={{ paddingBottom: 120 }}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  tintColor="#3B82F6"
+                  colors={['#3B82F6']}
+                />
+              }
+            >
+              {/* Back Button and Title */}
+              <View style={{ paddingTop: insets.top + 16 }}>
+                <View className="flex-row items-center justify-between mb-4">
+                  <TouchableOpacity
+                    onPress={handleGoBack}
+                    className="p-2"
+                    activeOpacity={0.7}
+                  >
+                    <ChevronLeft size={24} color="#F9FAFB" />
+                  </TouchableOpacity>
+                  <Text className="text-white text-xl font-geist-semibold">
+                    Profile
                   </Text>
+                  <View style={{ width: 40 }} />
                 </View>
-              </TouchableOpacity>
-            </Animated.View>
-          </View>
-        </View>
 
-        {/* Bottom Sheet for Avatar Options */}
-        <ChangeProfileSheet
-          bottomSheetRef={bottomSheetRef}
-          onTakePhoto={handleTakePhoto}
-          onChoosePhoto={handleChoosePhoto}
-        />
+                <View className="items-center mb-8">
+                  {loading ? (
+                    <View className="w-24 h-24 bg-gray-600 rounded-full animate-pulse" />
+                  ) : (
+                    <View className="relative w-32 h-32">
+                      <TouchableOpacity
+                        onPress={handleAvatarPress}
+                        activeOpacity={0.85}
+                        className="w-32 h-32 rounded-xl overflow-hidden"
+                      >
+                        <Image
+                          source={
+                            userData?.photo && typeof userData.photo === 'string'
+                              ? { uri: userData.photo }
+                              : require('@/assets/images/sample-profile-picture.jpg')
+                          }
+                          className="w-full h-full"
+                          resizeMode="cover"
+                        />
+                      </TouchableOpacity>
 
-        <Modal
-          visible={isImageViewerVisible}
-          transparent
-          animationType="fade"
-          onRequestClose={handleCloseImageViewer}
-        >
-          <GestureHandlerRootView style={{ flex: 1 }}>
-            <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.95)' }}>
+                      <TouchableOpacity
+                        className="bg-default-primary absolute -bottom-1 -right-1 w-10 h-10 rounded-full items-center justify-center"
+                        onPress={handleCameraButtonPress}
+                        activeOpacity={0.8}
+                        disabled={uploadingImage}
+                      >
+                        {uploadingImage ? (
+                          <View className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Camera size={20} color="white" />
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              </View>
+
+              {/* Personal Information */}
+              <View className="mb-6">
+                <Text className="text-text-muted text-sm font-geist-medium mb-4 pl-2 spacing-10 tracking-wide">
+                  PERSONAL INFORMATION
+                </Text>
+
+                {/* Full Name */}
+                <TouchableOpacity
+                  onPress={handleEditName}
+                  className="bg-gray-800 p-4 rounded-xl mb-3 border border-gray-600"
+                  activeOpacity={0.7}
+                >
+                  <View className="flex-row justify-between items-center">
+                    <View className="flex-1">
+                      <Text className="text-gray-400 text-sm mb-1 font-geist-regular">
+                        Name
+                      </Text>
+                      <Text className="text-gray-50 text-base font-geist-medium">
+                        {userData ? `${userData.firstName} ${userData.lastName}` : 'Loading...'}
+                      </Text>
+                    </View>
+                    <ChevronRight size={20} color="#9CA3AF" />
+                  </View>
+                </TouchableOpacity>
+
+                {/* Phone Number */}
+                <TouchableOpacity
+                  onPress={handleEditPhone}
+                  className="bg-gray-800 p-4 rounded-xl mb-3 border border-gray-600"
+                  activeOpacity={0.7}
+                >
+                  <View className="flex-row justify-between items-center">
+                    <View className="flex-1">
+                      <Text className="text-gray-400 text-sm mb-1 font-geist-regular">
+                        Phone Number
+                      </Text>
+                      <Text className="text-gray-50 text-base font-geist-medium">
+                        {userData?.phone || 'Loading...'}
+                      </Text>
+                    </View>
+                    <ChevronRight size={20} color="#9CA3AF" />
+                  </View>
+                </TouchableOpacity>
+
+                {/* Email */}
+                <TouchableOpacity
+                  onPress={handleEditEmail}
+                  className="bg-gray-800 p-4 rounded-xl mb-3 border border-gray-600"
+                  activeOpacity={0.7}
+                >
+                  <View className="flex-row justify-between items-center">
+                    <View className="flex-1">
+                      <Text className="text-gray-400 text-sm mb-1 font-geist-regular">
+                        Email
+                      </Text>
+                      <Text className="text-gray-50 text-base font-geist-medium">
+                        {userData?.email || 'Loading...'}
+                      </Text>
+                    </View>
+                    <ChevronRight size={20} color="#9CA3AF" />
+                  </View>
+                </TouchableOpacity>
+              </View>
+
+              {/* Password Section */}
+              <View className="mb-8">
+                <Text className="text-text-muted text-sm font-geist-medium mb-4 pl-2 spacing-10 tracking-wide">
+                  SECURITY
+                </Text>
+
+                <TouchableOpacity
+                  onPress={handleChangePassword}
+                  className="bg-gray-800 p-4 rounded-xl mb-3 border border-gray-600"
+                  activeOpacity={0.7}
+                >
+                  <View className="flex-row items-center">
+                    <View className="w-10 h-10 rounded-lg items-center justify-center mr-3 bg-default-primary/20">
+                      <Lock size={20} color={'#3B82F6'} />
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-gray-50 text-base font-geist-medium">
+                        Password
+                      </Text>
+                      <Text className="text-gray-400 text-xs mt-1 font-geist-regular">
+                        Last changed: {userData?.lastPasswordChange || 'Unknown'}
+                      </Text>
+                    </View>
+                    <ChevronRight size={20} color="#9CA3AF" />
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={handleViewLogs}
+                  className="bg-gray-800 p-4 rounded-xl mb-3 border border-gray-600"
+                  activeOpacity={0.7}
+                >
+                  <View className="flex-row items-center">
+                    <View className="w-10 h-10 rounded-lg items-center justify-center mr-3 bg-default-primary/20">
+                      <Logs size={20} color={'#3B82F6'} />
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-gray-50 text-base font-geist-medium">
+                        Logs
+                      </Text>
+                      <Text className="text-gray-400 text-xs mt-1 font-geist-regular">
+                        Last action: {userData?.lastPasswordChange || 'Unknown'}
+                      </Text>
+                    </View>
+                    <ChevronRight size={20} color="#9CA3AF" />
+                  </View>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+
+            {/* Fixed Bottom Sign Out Button */}
             <View
               style={{
+                padding: 20,
+                paddingBottom: Platform.OS === 'ios' ? insets.bottom + 20 : 20,
                 position: 'absolute',
-                top: insets.top + 12,
-                right: 16,
-                zIndex: 20,
-                flexDirection: 'row',
-                gap: 8,
+                bottom: 0,
+                left: 0,
+                right: 0,
               }}
             >
-              <Pressable
-                onPress={() => handleZoom(-BUTTON_ZOOM_STEP)}
-                style={({ pressed }) => ({
-                  width: 42,
-                  height: 42,
-                  borderRadius: 21,
-                  backgroundColor: pressed ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.18)',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  transform: [{ scale: pressed ? 0.97 : 1 }],
-                })}
-              >
-                <ZoomOut size={20} color="#FFFFFF" />
-              </Pressable>
-              <Pressable
-                onPress={() => handleZoom(BUTTON_ZOOM_STEP)}
-                style={({ pressed }) => ({
-                  width: 42,
-                  height: 42,
-                  borderRadius: 21,
-                  backgroundColor: pressed ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.18)',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  transform: [{ scale: pressed ? 0.97 : 1 }],
-                })}
-              >
-                <ZoomIn size={20} color="#FFFFFF" />
-              </Pressable>
-              <Pressable
-                onPress={handleCloseImageViewer}
-                style={({ pressed }) => ({
-                  width: 42,
-                  height: 42,
-                  borderRadius: 21,
-                  backgroundColor: pressed ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.18)',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  transform: [{ scale: pressed ? 0.97 : 1 }],
-                })}
-              >
-                <X size={20} color="#FFFFFF" />
-              </Pressable>
-            </View>
-
-            <GestureDetector gesture={composed}>
-              <Animated.View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                {userData?.photo ? (
-                  <Animated.Image
-                    source={{ uri: userData.photo }}
-                    resizeMode="contain"
-                    style={[{ width: '100%', height: '75%' }, animatedImageStyle]}
-                  />
-                ) : null}
+              <Animated.View style={signOutButtonStyle}>
+                <TouchableOpacity
+                  onPress={handleSignOut}
+                  className="bg-gray-800 p-4 rounded-xl border border-gray-600"
+                  activeOpacity={0.7}
+                  disabled={isSigningOut}
+                >
+                  <View className="flex-row items-center justify-center">
+                    {isSigningOut && (
+                      <ActivityIndicator size="small" color="#EF4444" style={{ marginRight: 10 }} />
+                    )}
+                    <Text className="text-red-500 text-base font-geist-medium text-center">
+                      {isSigningOut ? 'Signing Out...' : 'Sign Out'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
               </Animated.View>
-            </GestureDetector>
             </View>
-          </GestureHandlerRootView>
-        </Modal>
+          </View>
 
-      </Animated.View>
+          {/* Bottom Sheet for Avatar Options */}
+          <ChangeProfileSheet
+            bottomSheetRef={bottomSheetRef}
+            onTakePhoto={handleTakePhoto}
+            onChoosePhoto={handleChoosePhoto}
+          />
 
-      <AuthLoadingOverlay
-        visible={isSigningOut}
-        message="Signing out..."
-      />
+          <Modal
+            visible={isImageViewerVisible}
+            transparent
+            animationType="fade"
+            onRequestClose={handleCloseImageViewer}
+          >
+            <GestureHandlerRootView style={{ flex: 1 }}>
+              <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.95)' }}>
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: insets.top + 12,
+                    right: 16,
+                    zIndex: 20,
+                    flexDirection: 'row',
+                    gap: 8,
+                  }}
+                >
+                  <Pressable
+                    onPress={() => handleZoom(-BUTTON_ZOOM_STEP)}
+                    style={({ pressed }) => ({
+                      width: 42,
+                      height: 42,
+                      borderRadius: 21,
+                      backgroundColor: pressed ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.18)',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      transform: [{ scale: pressed ? 0.97 : 1 }],
+                    })}
+                  >
+                    <ZoomOut size={20} color="#FFFFFF" />
+                  </Pressable>
+                  <Pressable
+                    onPress={() => handleZoom(BUTTON_ZOOM_STEP)}
+                    style={({ pressed }) => ({
+                      width: 42,
+                      height: 42,
+                      borderRadius: 21,
+                      backgroundColor: pressed ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.18)',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      transform: [{ scale: pressed ? 0.97 : 1 }],
+                    })}
+                  >
+                    <ZoomIn size={20} color="#FFFFFF" />
+                  </Pressable>
+                  <Pressable
+                    onPress={handleCloseImageViewer}
+                    style={({ pressed }) => ({
+                      width: 42,
+                      height: 42,
+                      borderRadius: 21,
+                      backgroundColor: pressed ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.18)',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      transform: [{ scale: pressed ? 0.97 : 1 }],
+                    })}
+                  >
+                    <X size={20} color="#FFFFFF" />
+                  </Pressable>
+                </View>
+
+                <GestureDetector gesture={composed}>
+                  <Animated.View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                    {userData?.photo ? (
+                      <Animated.Image
+                        source={{ uri: userData.photo }}
+                        resizeMode="contain"
+                        style={[{ width: '100%', height: '75%' }, animatedImageStyle]}
+                      />
+                    ) : null}
+                  </Animated.View>
+                </GestureDetector>
+              </View>
+            </GestureHandlerRootView>
+          </Modal>
+
+        </Animated.View>
+
+        <AuthLoadingOverlay
+          visible={isSigningOut}
+          message="Signing out..."
+        />
       </View>
     </BottomSheetModalProvider>
   );

@@ -1,9 +1,10 @@
 import { apiFetch, API_BASE_URL } from '@/lib/api-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
-import { 
-  saveProfileToCache, 
-  getProfileFromCache
+import {
+  saveProfileToCache,
+  getProfileFromCache,
+  clearProfileCache,
 } from './profile-cache';
 
 const TOKEN_KEY = '@auth_token';
@@ -27,6 +28,22 @@ export interface UpdateProfileRequest {
   email?: string;
   phone?: string;
   address?: string;
+}
+
+export interface RequestEmailChangeResponse {
+  message: string;
+}
+
+export interface VerifyEmailChangeResponse {
+  message: string;
+}
+
+export interface RequestNumberChangeResponse {
+  message: string;
+}
+
+export interface VerifyNumberChangeResponse {
+  message: string;
 }
 
 interface BackendUserProfile {
@@ -85,10 +102,10 @@ export const getProfile = async (options?: { forceRefresh?: boolean }): Promise<
     console.log('Fetching fresh profile data from API...');
     const data = await apiFetch<{ user: BackendUserProfile }>('/me');
     const normalizedProfile = normalizeProfile(data.user);
-    
+
     // Save to cache
     await saveProfileToCache(normalizedProfile);
-    
+
     return normalizedProfile;
   } catch (error) {
     console.error('Error fetching user profile:', error);
@@ -110,15 +127,81 @@ export const updateProfile = async (updates: UpdateProfileRequest): Promise<User
 
     // Re-fetch normalized profile to keep UI in sync with persisted backend state.
     const normalizedProfile = await getProfile({ forceRefresh: true });
-    
+
     // Update cache with new data
     await saveProfileToCache(normalizedProfile);
-    
+
     return normalizedProfile;
   } catch (error) {
     console.error('Error updating user profile:', error);
     throw error;
   }
+};
+
+export const requestEmailChangeOTP = async (newEmail: string): Promise<RequestEmailChangeResponse> => {
+  const email = newEmail.trim();
+  if (!email) throw new Error('New email is required');
+
+  return apiFetch<RequestEmailChangeResponse>('/profile/change-email', {
+    method: 'POST',
+    body: JSON.stringify({ newEmail: email }),
+  });
+};
+
+export const verifyEmailChangeOTP = async (code: string): Promise<UserProfile> => {
+  const trimmedCode = code.trim();
+  if (!trimmedCode) throw new Error('Verification code is required');
+
+  await apiFetch<VerifyEmailChangeResponse>('/profile/verify-email-change', {
+    method: 'POST',
+    body: JSON.stringify({ code: trimmedCode }),
+  });
+
+  await clearProfileCache();
+  return getProfile({ forceRefresh: true });
+};
+
+const normalizePhilippineContactNumber = (raw: string): string => {
+  const digitsOnly = raw.replace(/\D+/g, '');
+
+  if (digitsOnly.startsWith('0')) {
+    return digitsOnly;
+  }
+
+  // If user typed 63xxxxxxxxxx, convert to +63xxxxxxxxxx
+  if (digitsOnly.startsWith('63') && digitsOnly.length >= 12) {
+    return `+${digitsOnly}`;
+  }
+
+  // If user typed 9xxxxxxxxx (10 digits), convert to 09xxxxxxxxx
+  if (digitsOnly.startsWith('9') && digitsOnly.length === 10) {
+    return `0${digitsOnly}`;
+  }
+
+  return digitsOnly;
+};
+
+export const requestNumberChangeOTP = async (newNumberRaw: string): Promise<RequestNumberChangeResponse> => {
+  const newNumber = normalizePhilippineContactNumber(newNumberRaw);
+  if (!newNumber) throw new Error('New phone number is required');
+
+  return apiFetch<RequestNumberChangeResponse>('/profile/change-number', {
+    method: 'POST',
+    body: JSON.stringify({ newNumber }),
+  });
+};
+
+export const verifyNumberChangeOTP = async (code: string): Promise<UserProfile> => {
+  const trimmedCode = code.trim();
+  if (!trimmedCode) throw new Error('Verification code is required');
+
+  await apiFetch<VerifyNumberChangeResponse>('/profile/verify-number-change', {
+    method: 'POST',
+    body: JSON.stringify({ code: trimmedCode }),
+  });
+
+  await clearProfileCache();
+  return getProfile({ forceRefresh: true });
 };
 
 // Update password
@@ -159,7 +242,7 @@ export const uploadProfilePicture = async (imageUri: string): Promise<UserProfil
     // Read file as base64 from device
     console.log('📖 [uploadProfilePicture] Reading file from device...');
     let fileBase64: string;
-    
+
     try {
       fileBase64 = await FileSystem.readAsStringAsync(imageUri, {
         encoding: FileSystem.EncodingType.Base64,
@@ -260,10 +343,10 @@ const clearLocalProfileImageCache = async (userId: string): Promise<void> => {
 const downloadAndSaveProfileImage = async (userId: string, imageUrl: string, token: string | null): Promise<string | undefined> => {
   try {
     console.log('📥 [downloadAndSaveProfileImage] Downloading image from:', imageUrl);
-    
+
     const version = Date.now();
     const localPath = getLocalProfileImagePath(userId, version);
-    
+
     // Save to local cache via legacy API to avoid RN Blob/FileReader/btoa issues.
     await FileSystem.downloadAsync(imageUrl, localPath, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -288,7 +371,7 @@ const getProfileImageUri = async (userId: string, serverImageUrl: string | undef
 
   // Check if the latest tracked local copy exists
   const localPath = await getStoredLocalProfileImagePath(userId);
-  
+
   if (localPath) {
     try {
       const fileInfo = await FileSystem.getInfoAsync(localPath);
@@ -320,7 +403,7 @@ const getImageFileInfo = async (uri: string): Promise<{ type: string; name: stri
     // Extract file extension from URI
     const uriParts = uri.split('.');
     const fileExtension = uriParts[uriParts.length - 1];
-    
+
     // Determine MIME type based on extension
     const mimeTypes: { [key: string]: string } = {
       'jpg': 'image/jpeg',
@@ -329,10 +412,10 @@ const getImageFileInfo = async (uri: string): Promise<{ type: string; name: stri
       'gif': 'image/gif',
       'webp': 'image/webp',
     };
-    
+
     const mimeType = mimeTypes[fileExtension.toLowerCase()] || 'image/jpeg';
     const fileName = `profile.${fileExtension || 'jpg'}`;
-    
+
     return { type: mimeType, name: fileName };
   } catch (error) {
     console.error('Error getting file info:', error);
