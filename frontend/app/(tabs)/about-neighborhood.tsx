@@ -2,12 +2,13 @@ import { NeighborhoodEdit } from '@/components/neighborhood/neighborhood-edit';
 import { NeighborhoodView } from '@/components/neighborhood/neighborhood-view';
 import { FocalPersonModal } from '@/components/neighborhood/focal-person-modal';
 import { RefreshNotification } from '@/components/ui/refresh-notification';
+import { AuthLoadingOverlay } from '@/components/ui/auth-loading-overlay';
 import { colors } from '@/constants/colors';
 import { useNeighborhoodData } from '@/hooks/use-neighborhood-data';
 import { useEditMode } from '@/contexts/edit-mode-context';
 import { formatDate } from '@/utils/formatters';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, StatusBar, Text, TouchableOpacity, View, Alert, Linking } from 'react-native';
+import { Image, ScrollView, StatusBar, Text, TouchableOpacity, View, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Radio, Edit, ArrowLeft, ExternalLink } from 'lucide-react-native';
 
@@ -137,12 +138,7 @@ export default function AboutNeighborhoodScreen() {
       />
 
       {isLoading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={colors.status.info} />
-          <Text className="text-text-muted text-base font-geist-regular mt-4">
-            Loading your neighborhood data...
-          </Text>
-        </View>
+        <View className="flex-1" />
       ) : !neighborhoodData ? (
         <View className="flex-1 items-center justify-center px-6">
           <Text className="text-text-primary text-xl font-geist-semibold mb-2">
@@ -283,6 +279,11 @@ export default function AboutNeighborhoodScreen() {
           />
         </ScrollView>
       )}
+
+      <AuthLoadingOverlay
+        visible={isLoading || isSubmitting}
+        message={isSubmitting ? 'Saving neighborhood information...' : 'Loading your neighborhood data...'}
+      />
 
       <RefreshNotification
         visible={notification.visible}

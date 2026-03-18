@@ -4,15 +4,10 @@ import { Image, Text, TouchableOpacity, View } from 'react-native';
 import { ChevronDown, ChevronUp, User } from 'lucide-react-native';
 import { formatDate } from '@/utils/formatters';
 import { API_BASE_URL } from '@/lib/api-client';
-
-// All available hazard keys in display order
-const ALL_HAZARD_KEYS = [
-  'strong-water-current',
-  'risk-landslide',
-  'drainage-overflow',
-  'roads-impassable',
-  'electrical-wires',
-];
+import {
+  hazardKeys,
+  normalizeHazardList,
+} from '@/constants/neighborhood-options';
 
 // Short display labels (without Filipino translations)
 const HAZARD_SHORT_LABELS: Record<string, string> = {
@@ -172,6 +167,9 @@ export const NeighborhoodView: React.FC<NeighborhoodViewProps> = ({
     setExpandedFamilies((prev) => ({ ...prev, [idx]: !prev[idx] }));
 
   const families = neighborhoodData.familyDetails || [];
+  const activeHazardKeys = new Set(
+    normalizeHazardList(neighborhoodData.floodRelatedHazards),
+  );
 
   // Build the info rows for "About the Neighborhood", filtering out empty values
   const aboutRows: { label: string; value: string }[] = [
@@ -207,9 +205,9 @@ export const NeighborhoodView: React.FC<NeighborhoodViewProps> = ({
       {/* ── EXISTING FLOOD-RELATED HAZARDS ─────────────── */}
       <SectionHeader title="EXISTING FLOOD-RELATED HAZARDS" />
       <View style={{ backgroundColor: '#1D1D1D', borderRadius: 12, paddingHorizontal: 16 }}>
-        {ALL_HAZARD_KEYS.map((key, idx) => {
-          const active = neighborhoodData.floodRelatedHazards.includes(key);
-          const isLast = idx === ALL_HAZARD_KEYS.length - 1;
+        {hazardKeys.map((key, idx) => {
+          const active = activeHazardKeys.has(key);
+          const isLast = idx === hazardKeys.length - 1;
           return (
             <View
               key={key}

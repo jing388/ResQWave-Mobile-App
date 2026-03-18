@@ -1,5 +1,6 @@
 import { LogCard, LogChange } from '@/components/profile/log-card';
 import { Dropdown } from '@/components/ui/dropdown';
+import { AuthLoadingOverlay } from '@/components/ui/auth-loading-overlay';
 import { SearchField } from '@/components/ui/search-field';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -12,7 +13,6 @@ import {
   Text,
   TouchableOpacity,
   View,
-  ActivityIndicator,
 } from 'react-native';
 import Collapsible from 'react-native-collapsible';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -262,14 +262,7 @@ export default function LogsScreen() {
 
           {/* Logs List */}
           <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-            {isLoading ? (
-              <View className="items-center justify-center py-12">
-                <ActivityIndicator size="large" color="#3B82F6" />
-                <Text className="text-gray-400 text-base font-geist-regular mt-4">
-                  Loading logs...
-                </Text>
-              </View>
-            ) : error ? (
+            {isLoading ? null : error ? (
               <View className="items-center justify-center py-12 px-6">
                 <Text className="text-red-400 text-base font-geist-regular text-center mb-4">
                   {error}
@@ -289,6 +282,11 @@ export default function LogsScreen() {
                   }}
                   className="bg-blue-500 px-6 py-3 rounded-lg"
                 >
+
+              <AuthLoadingOverlay
+                visible={isLoading}
+                message="Loading logs..."
+              />
                   <Text className="text-white font-geist-medium">Retry</Text>
                 </TouchableOpacity>
               </View>

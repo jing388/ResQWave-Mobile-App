@@ -1,6 +1,8 @@
 import {
   availableHazards,
   dropdownOptions,
+  normalizeHazardKey,
+  normalizeHazardList,
 } from '@/constants/neighborhood-options';
 import {
   fetchNeighborhoodData,
@@ -100,6 +102,28 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
     }));
   };
 
+  const normalizeFamilyDetails = (
+    families: PersistedFamilyDetail[],
+  ): PersistedFamilyDetail[] => {
+    return families
+      .map((family) => ({
+        familyName: family.familyName.trim(),
+        members: family.members
+          .map((member) => member.trim())
+          .filter(Boolean),
+      }))
+      .filter((family) => family.familyName.length > 0);
+  };
+
+  const buildEditableHazards = (hazards: string[]): FloodHazard[] => {
+    const normalized = new Set(normalizeHazardList(hazards));
+
+    return availableHazards.map((hazard) => ({
+      label: hazard,
+      checked: normalized.has(normalizeHazardKey(hazard)),
+    }));
+  };
+
   // Fetch neighborhood data from backend
   // For data privacy compliance, we ALWAYS fetch the user's OWN neighborhood
   // The neighborhoodId parameter is only used to verify it matches the user's own neighborhood
@@ -154,11 +178,25 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
         console.log('🔄 [use-neighborhood-data] ========================================');
 
         const persistedFamilyDetails = await loadFamilyDetails(data.id);
-        const editableFamilies = mapPersistedFamiliesToEditable(persistedFamilyDetails);
+        const backendFamilyDetails = normalizeFamilyDetails(
+          data.familyDetails || [],
+        );
+        const effectiveFamilyDetails =
+          backendFamilyDetails.length > 0
+            ? backendFamilyDetails
+            : normalizeFamilyDetails(persistedFamilyDetails);
+        const editableFamilies = mapPersistedFamiliesToEditable(
+          effectiveFamilyDetails,
+        );
+
+        // Keep local cache in sync with server data when available.
+        if (backendFamilyDetails.length > 0) {
+          await saveFamilyDetails(data.id, backendFamilyDetails);
+        }
 
         setNeighborhoodData({
           ...data,
-          familyDetails: persistedFamilyDetails,
+          familyDetails: effectiveFamilyDetails,
         });
 
         // Initialize edited data with fetched data
@@ -167,12 +205,7 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
           approxResidents: data.approxResidents,
           avgHouseholdSize: data.avgHouseholdSize,
           floodwaterSubsidence: data.floodwaterSubsidence,
-          floodRelatedHazards: availableHazards.map((hazard) => ({
-            label: hazard,
-            checked: data.floodRelatedHazards.some(
-              (h) => hazard.includes(h) || h.includes(hazard.split(' (')[0]),
-            ),
-          })),
+          floodRelatedHazards: buildEditableHazards(data.floodRelatedHazards),
           notableInfo: data.notableInfo.join('\n'),
           families: editableFamilies,
           alternativeFocalPerson: {
@@ -196,8 +229,8 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
           console.error('❌ [use-neighborhood-data] Unexpected error:', error);
         }
         
-        // Set neighborhood data to null to show "No Neighborhood Selected" message
-        setNeighborhoodData(null);
+        // Preserve existing data on transient failures to avoid UI data loss.
+        setNeighborhoodData((previous) => previous);
       } finally {
         setIsLoading(false);
       }
@@ -221,12 +254,9 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
         approxResidents: neighborhoodData.approxResidents,
         avgHouseholdSize: neighborhoodData.avgHouseholdSize,
         floodwaterSubsidence: neighborhoodData.floodwaterSubsidence,
-        floodRelatedHazards: availableHazards.map((hazard) => ({
-          label: hazard,
-          checked: neighborhoodData.floodRelatedHazards.some(
-            (h) => hazard.includes(h) || h.includes(hazard.split(' (')[0]),
-          ),
-        })),
+        floodRelatedHazards: buildEditableHazards(
+          neighborhoodData.floodRelatedHazards,
+        ),
         notableInfo: neighborhoodData.notableInfo.join('\n'),
         families: mapPersistedFamiliesToEditable(persistedFamilies),
         alternativeFocalPerson: {
@@ -251,6 +281,18 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
     try {
       if (!neighborhoodData) return;
 
+      // Serialize family details for persistence (backend-ready format)
+      const familyDetailsPayload: PersistedFamilyDetail[] = normalizeFamilyDetails(
+        editedData.families
+          .filter((f) => f.name.trim())
+          .map((f) => ({
+            familyName: f.name.trim(),
+            members: f.members
+              .map((m) => m.name.trim())
+              .filter(Boolean),
+          })),
+      );
+
       // Prepare data for API
       const updatedDataParams = {
         neighborhoodId: neighborhoodData.id,
@@ -258,18 +300,21 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
         approxResidents: editedData.approxResidents,
         avgHouseholdSize: editedData.avgHouseholdSize,
         floodwaterSubsidence: editedData.floodwaterSubsidence,
-        floodRelatedHazards: editedData.floodRelatedHazards
-          .filter((h) => h.checked)
-          .map((h) => h.label.split(' (')[0]),
+        floodRelatedHazards: normalizeHazardList(
+          editedData.floodRelatedHazards
+            .filter((h) => h.checked)
+            .map((h) => h.label),
+        ),
         notableInfo: editedData.notableInfo
           .split('\n')
           .filter((line) => line.trim() !== ''),
+        familyDetails: familyDetailsPayload,
         alternativeFocalPerson: editedData.alternativeFocalPerson,
       };
 
-      const normalizedCurrentHazards = [...neighborhoodData.floodRelatedHazards]
-        .map((h) => h.split(' (')[0])
-        .sort();
+      const normalizedCurrentHazards = normalizeHazardList(
+        neighborhoodData.floodRelatedHazards,
+      ).sort();
       const normalizedNextHazards = [...updatedDataParams.floodRelatedHazards].sort();
       const normalizedCurrentNotableInfo = neighborhoodData.notableInfo
         .map((line) => line.trim())
@@ -277,6 +322,12 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
       const normalizedNextNotableInfo = updatedDataParams.notableInfo
         .map((line) => line.trim())
         .filter(Boolean);
+      const normalizedCurrentFamilies = normalizeFamilyDetails(
+        neighborhoodData.familyDetails || [],
+      );
+      const normalizedNextFamilies = normalizeFamilyDetails(
+        updatedDataParams.familyDetails,
+      );
 
       const currentAltFullName = neighborhoodData.alternativeFocalPerson.name.trim();
       const nextAltFullName = [
@@ -298,27 +349,17 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
           JSON.stringify(normalizedNextHazards) ||
         JSON.stringify(normalizedCurrentNotableInfo) !==
           JSON.stringify(normalizedNextNotableInfo) ||
+        JSON.stringify(normalizedCurrentFamilies) !==
+          JSON.stringify(normalizedNextFamilies) ||
         currentAltFullName !== nextAltFullName ||
         neighborhoodData.alternativeFocalPerson.contactNo.trim() !==
           editedData.alternativeFocalPerson.contactNo.trim() ||
         neighborhoodData.alternativeFocalPerson.email.trim() !==
           editedData.alternativeFocalPerson.email.trim();
 
-      // Serialize family details for persistence (backend-ready format)
-      const familyDetailsPayload: PersistedFamilyDetail[] = editedData.families
-        .filter((f) => f.name.trim())
-        .map((f) => ({
-          familyName: f.name.trim(),
-          members: f.members
-            .map((m) => m.name.trim())
-            .filter(Boolean),
-        }));
-
       console.log('💾 [handleSubmitEdit] Family details to save:', JSON.stringify(familyDetailsPayload, null, 2));
-      console.log('ℹ️ [handleSubmitEdit] Backend integration note: familyDetails field exists in backend but is not yet wired to PUT /neighborhood/:id endpoint');
-      console.log('ℹ️ [handleSubmitEdit] When backend is ready, add familyDetails to updateNeighborhoodData params');
 
-      // Save family details to AsyncStorage (mock persistence for demonstration)
+      // Save family details locally as offline fallback cache.
       await saveFamilyDetails(neighborhoodData.id, familyDetailsPayload);
 
       setNeighborhoodData((prev) =>
@@ -357,8 +398,8 @@ export const useNeighborhoodData = (neighborhoodId?: string | null): UseNeighbor
       const now = new Date().toISOString();
       setNeighborhoodData({
         ...neighborhoodData,
-        approxHouseholds: updatedDataParams.approxHouseholds,
-        approxResidents: updatedDataParams.approxResidents,
+        approxHouseholds: String(updatedDataParams.approxHouseholds),
+        approxResidents: String(updatedDataParams.approxResidents),
         avgHouseholdSize: updatedDataParams.avgHouseholdSize,
         floodwaterSubsidence: updatedDataParams.floodwaterSubsidence,
         floodRelatedHazards: updatedDataParams.floodRelatedHazards,

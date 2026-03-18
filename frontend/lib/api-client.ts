@@ -12,17 +12,90 @@ const API_BASE_URL =
 // Storage keys
 const TOKEN_KEY = '@auth_token';
 
+interface RefreshTokenResponse {
+  token?: string;
+}
+
 // Global logout handler for 401/403 errors
 let logoutCallback: (() => void) | null = null;
+let refreshPromise: Promise<string | null> | null = null;
 
 export function setGlobalLogoutCallback(callback: () => void) {
   logoutCallback = callback;
+}
+
+async function clearAuthAndLogout() {
+  await AsyncStorage.removeItem(TOKEN_KEY);
+  await AsyncStorage.removeItem('@auth_user');
+
+  if (logoutCallback) {
+    logoutCallback();
+  }
+}
+
+function isRefreshableAuthError(status: number, message: string): boolean {
+  if (status !== 401 && status !== 403) {
+    return false;
+  }
+
+  const normalized = String(message || '').toLowerCase();
+  return (
+    normalized.includes('expired') ||
+    normalized.includes('invalid token') ||
+    normalized.includes('invalid or expired token') ||
+    normalized.includes('session expired') ||
+    normalized.includes('jwt expired')
+  );
+}
+
+async function refreshToken(currentToken: string): Promise<string | null> {
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+
+  refreshPromise = (async () => {
+    try {
+      const refreshUrl = `${API_BASE_URL}/refresh`;
+      console.log('🔄 Attempting token refresh...');
+
+      const refreshResponse = await fetch(refreshUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${currentToken}`,
+        },
+      });
+
+      if (!refreshResponse.ok) {
+        console.warn('⚠️ Token refresh failed with status:', refreshResponse.status);
+        return null;
+      }
+
+      const data = await refreshResponse.json() as RefreshTokenResponse;
+      if (!data?.token) {
+        console.warn('⚠️ Token refresh response did not include a token');
+        return null;
+      }
+
+      await AsyncStorage.setItem(TOKEN_KEY, data.token);
+      console.log('✅ Token refresh successful');
+      return data.token;
+    } catch (error: any) {
+      console.warn('⚠️ Token refresh request failed:', error?.message || error);
+      return null;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
 }
 
 // Centralized API fetch function
 export async function apiFetch<T = any>(
   endpoint: string,
   options: RequestInit = {},
+  retryAfterRefresh: boolean = true,
 ): Promise<T> {
   // Get token from AsyncStorage
   const token = await AsyncStorage.getItem(TOKEN_KEY);
@@ -78,17 +151,7 @@ export async function apiFetch<T = any>(
 
     // Handle authentication errors
     if (res.status === 401 || res.status === 403) {
-      console.log('🚫 Authentication error, clearing tokens');
-      // Clear token and trigger logout
-      await AsyncStorage.removeItem(TOKEN_KEY);
-      await AsyncStorage.removeItem('@auth_user');
-
-      // Call global logout callback if set
-      if (logoutCallback) {
-        logoutCallback();
-      }
-
-      // Try to parse JSON error message
+      // Try to parse backend message before deciding whether to refresh or logout.
       let errorMessage = 'Session expired. Please login again.';
       try {
         const errorData = await res.json();
@@ -96,6 +159,23 @@ export async function apiFetch<T = any>(
       } catch {
         // If JSON parsing fails, use default message
       }
+
+      // Attempt one transparent refresh-and-retry for expired/invalid token cases.
+      if (
+        !isPublicEndpoint &&
+        token &&
+        retryAfterRefresh &&
+        endpoint !== '/refresh' &&
+        isRefreshableAuthError(res.status, errorMessage)
+      ) {
+        const nextToken = await refreshToken(token);
+        if (nextToken) {
+          return apiFetch<T>(endpoint, options, false);
+        }
+      }
+
+      console.log('🚫 Authentication error, logging out');
+      await clearAuthAndLogout();
 
       throw new Error(errorMessage);
     }

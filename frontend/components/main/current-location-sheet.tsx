@@ -4,6 +4,7 @@ import React, { useCallback, useMemo, useRef, useEffect, useState } from 'react'
 import { Text, TouchableOpacity, View, Share, Platform, Alert } from 'react-native';
 import { colors } from "@/constants/colors";
 import { reverseGeocode } from '@/services/geocoding-service';
+import { buildGoogleMapsLink } from '@/utils/map-links';
 
 interface CurrentLocationSheetProps {
   visible: boolean;
@@ -70,7 +71,7 @@ export function CurrentLocationSheet({
     }
 
     try {
-      const googleMapsUrl = `https://maps.google.com/?q=${latitude},${longitude}`;
+      const googleMapsUrl = buildGoogleMapsLink(latitude, longitude);
       const message = `My Current Location: ${placeName}\n${googleMapsUrl}`;
 
       const result = await Share.share({

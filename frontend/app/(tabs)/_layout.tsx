@@ -60,7 +60,8 @@ export default function TabLayout() {
   const slideAnim = useRef(new Animated.Value(0)).current;
 
   // Tab bar composed height: fixed content area + system nav inset
-  const TAB_CONTENT_H = 50;
+  const TAB_CONTENT_H = 52;
+  const TAB_INDICATOR_H = 3;
   // Keep a small baseline inset on Android so the custom bar still clears
   // transient system UI while edge-to-edge settles after launch/resume.
   const EXTRA_BOTTOM = 6;
@@ -94,7 +95,7 @@ export default function TabLayout() {
           tabBarHideOnKeyboard: true,
           tabBarActiveIndicatorStyle: { backgroundColor: 'transparent' },
           tabBarStyle: {
-            paddingTop: 8,
+            paddingTop: 9,
             paddingBottom: resolvedBottomInset + EXTRA_BOTTOM,
             height: tabBarHeight,
             backgroundColor: '#171717',
@@ -191,10 +192,11 @@ export default function TabLayout() {
       <Animated.View
         style={{
           position: 'absolute',
-          bottom: resolvedBottomInset + TAB_CONTENT_H,
+          // Pin indicator to the bar's top edge so no gap is visible.
+          bottom: resolvedBottomInset + TAB_CONTENT_H + EXTRA_BOTTOM - TAB_INDICATOR_H,
           left: 0,
           width: tabWidth,
-          height: 3,
+          height: TAB_INDICATOR_H,
           backgroundColor: '#3B82F6',
           transform: [{ translateX: slideAnim }],
           borderRadius: 2,

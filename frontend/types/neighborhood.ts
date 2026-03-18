@@ -33,6 +33,7 @@ export interface BackendNeighborhoodDetails {
   noOfResidents: string;
   floodwaterSubsidenceDuration: string;
   hazards: string[];
+  familyDetails?: string | FamilyDetail[] | null;
   otherInformation: string | null;
   focalPerson: {
     name: string | null;
@@ -58,6 +59,7 @@ export interface BackendSpecificNeighborhood {
   noOfResidents: string;
   floodSubsideHours: string;
   hazards: string[];
+  familyDetails?: string | FamilyDetail[] | null;
   otherInformation: string | null;
   focalPersonID: string;
   focalPerson: {
@@ -95,6 +97,11 @@ export interface MarkerData {
 }
 
 // Frontend display types
+export interface FamilyDetail {
+  familyName: string;
+  members: string[];
+}
+
 export interface NeighborhoodData {
   id: string;
   name: string;
@@ -113,10 +120,7 @@ export interface NeighborhoodData {
   floodwaterSubsidence: string;
   floodRelatedHazards: string[];
   notableInfo: string[];
-  familyDetails?: {
-    familyName: string;
-    members: string[];
-  }[];
+  familyDetails?: FamilyDetail[];
   focalPerson: {
     name: string;
     avatar?: string;

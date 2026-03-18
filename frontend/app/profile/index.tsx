@@ -1,4 +1,5 @@
 import ChangeProfileSheet from '@/components/profile/change-profile-sheet';
+import { AuthLoadingOverlay } from '@/components/ui/auth-loading-overlay';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   BottomSheetModal,
@@ -31,11 +32,10 @@ import {
   Text,
   TouchableOpacity,
   View,
-  StyleSheet,
   ActivityIndicator,
 } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
-import Animated, { cancelAnimation, useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
+import Animated, { cancelAnimation, useSharedValue, useAnimatedStyle, withTiming, runOnJS, Easing } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getProfile, updateProfilePicture, UserProfile, prepareProfileWithLocalImage } from '@/services/user-service';
 
@@ -60,11 +60,19 @@ export default function ProfileScreen() {
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const signOutProgress = useSharedValue(1);
+  const signOutButtonScale = useSharedValue(1);
+  const signOutButtonOpacity = useSharedValue(1);
   const { width } = Dimensions.get('window');
   const transition = useSharedValue(1);
 
   const signOutStyle = useAnimatedStyle(() => ({
     opacity: signOutProgress.value,
+    transform: [{ scale: 0.98 + signOutProgress.value * 0.02 }],
+  }));
+
+  const signOutButtonStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: signOutButtonScale.value }],
+    opacity: signOutButtonOpacity.value,
   }));
 
   const animatedLayoutStyle = useAnimatedStyle(() => ({
@@ -374,15 +382,35 @@ export default function ProfileScreen() {
   };
 
   const handleSignOut = () => {
+    if (isSigningOut) return;
+
     setIsSigningOut(true);
-    // fade the whole screen then run logout
-    signOutProgress.value = withTiming(0, { duration: 300 }, () => {
+    // Animate press feedback, then fade the screen before logout.
+    signOutButtonScale.value = withTiming(0.97, {
+      duration: 100,
+      easing: Easing.out(Easing.quad),
+    }, () => {
+      signOutButtonScale.value = withTiming(1, {
+        duration: 180,
+        easing: Easing.out(Easing.quad),
+      });
+    });
+    signOutButtonOpacity.value = withTiming(0.85, {
+      duration: 180,
+      easing: Easing.out(Easing.quad),
+    });
+
+    signOutProgress.value = withTiming(0, {
+      duration: 420,
+      easing: Easing.inOut(Easing.cubic),
+    }, () => {
       runOnJS(performSignOut)();
     });
   };
 
   return (
     <BottomSheetModalProvider>
+      <View style={{ flex: 1 }}>
       <Animated.View style={[{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)' }, signOutStyle, animatedLayoutStyle]}>
         <StatusBar
           barStyle="light-content"
@@ -610,27 +638,23 @@ export default function ProfileScreen() {
               right: 0,
             }}
           >
-            {isSigningOut && (
-              <View
-                style={{
-                  ...StyleSheet.absoluteFillObject,
-                  backgroundColor: 'rgba(0,0,0,0.6)',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                }}
+            <Animated.View style={signOutButtonStyle}>
+              <TouchableOpacity
+                onPress={handleSignOut}
+                className="bg-gray-800 p-4 rounded-xl border border-gray-600"
+                activeOpacity={0.7}
+                disabled={isSigningOut}
               >
-                <ActivityIndicator size="large" color="#fff" />
-              </View>
-            )}
-            <TouchableOpacity
-              onPress={handleSignOut}
-              className="bg-gray-800 p-4 rounded-xl border border-gray-600"
-              activeOpacity={0.7}
-            >
-              <Text className="text-red-500 text-base font-geist-medium text-center">
-                Sign Out
-              </Text>
-            </TouchableOpacity>
+                <View className="flex-row items-center justify-center">
+                  {isSigningOut && (
+                    <ActivityIndicator size="small" color="#EF4444" style={{ marginRight: 10 }} />
+                  )}
+                  <Text className="text-red-500 text-base font-geist-medium text-center">
+                    {isSigningOut ? 'Signing Out...' : 'Sign Out'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
           </View>
         </View>
 
@@ -717,7 +741,14 @@ export default function ProfileScreen() {
             </View>
           </GestureHandlerRootView>
         </Modal>
+
       </Animated.View>
+
+      <AuthLoadingOverlay
+        visible={isSigningOut}
+        message="Signing out..."
+      />
+      </View>
     </BottomSheetModalProvider>
   );
 }

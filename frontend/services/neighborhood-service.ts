@@ -4,8 +4,10 @@ import {
   BackendOtherNeighborhood,
   BackendNeighborhoodDetails,
   BackendSpecificNeighborhood,
+  FamilyDetail,
   MarkerData,
 } from '@/types/neighborhood';
+import { normalizeHazardList } from '@/constants/neighborhood-options';
 import { apiFetch } from '@/lib/api-client';
 
 /**
@@ -62,6 +64,53 @@ const parseAddress = (
     // Return null - coordinates must be stored in JSON format
     return null;
   }
+};
+
+const parseFamilyDetails = (value: unknown): FamilyDetail[] => {
+  if (!value) return [];
+
+  const normalizeFamilies = (raw: unknown[]): FamilyDetail[] => {
+    return raw
+      .map((entry) => {
+        if (!entry || typeof entry !== 'object') return null;
+
+        const source = entry as Record<string, unknown>;
+        const familyName =
+          typeof source.familyName === 'string' ? source.familyName.trim() : '';
+        const members = Array.isArray(source.members)
+          ? source.members
+              .map((member) =>
+                typeof member === 'string' ? member.trim() : String(member || '').trim(),
+              )
+              .filter(Boolean)
+          : [];
+
+        if (!familyName) return null;
+
+        return {
+          familyName,
+          members,
+        };
+      })
+      .filter((entry): entry is FamilyDetail => !!entry);
+  };
+
+  if (Array.isArray(value)) {
+    return normalizeFamilies(value);
+  }
+
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        return normalizeFamilies(parsed);
+      }
+    } catch {
+      return [];
+    }
+  }
+
+  return [];
 };
 
 /**
@@ -210,6 +259,7 @@ export const fetchNeighborhoodDetails = async (
 
     // Handle different response structures based on the endpoint
     let households, residents, floodwaterSubsidence, hazards, otherInfo, focalPersonData;
+    let familyDetails: FamilyDetail[] = [];
     let neighborhoodIdValue, createdDate, updatedDate;
     
     if (isOwnEndpoint) {
@@ -218,6 +268,7 @@ export const fetchNeighborhoodDetails = async (
       residents = data.noOfResidents || '';
       floodwaterSubsidence = data.floodwaterSubsidenceDuration || '';
       hazards = data.hazards || [];
+      familyDetails = parseFamilyDetails(data.familyDetails);
       otherInfo = data.otherInformation || null;
       neighborhoodIdValue = data.neighborhoodID;
       createdDate = data.createdDate;
@@ -241,6 +292,7 @@ export const fetchNeighborhoodDetails = async (
       residents = data.noOfResidents || '';
       floodwaterSubsidence = data.floodSubsideHours || '';
       hazards = data.hazards || [];
+      familyDetails = parseFamilyDetails(data.familyDetails);
       otherInfo = data.otherInformation || null;
       neighborhoodIdValue = data.id;
       createdDate = data.createdAt;
@@ -286,8 +338,9 @@ export const fetchNeighborhoodDetails = async (
       approxResidents: residents,
       avgHouseholdSize: avgSize,
       floodwaterSubsidence: floodwaterSubsidence,
-      floodRelatedHazards: hazards,
+      floodRelatedHazards: normalizeHazardList(hazards),
       notableInfo: otherInfo ? [otherInfo] : [],
+      familyDetails,
       focalPerson: {
         name: focalPersonData.name || '',
         contactNo: focalPersonData.number || '',
@@ -328,12 +381,13 @@ export const fetchNeighborhoodData = fetchNeighborhoodDetails;
 
 export interface UpdateNeighborhoodDataParams {
   neighborhoodId: string;
-  approxHouseholds: number;
-  approxResidents: number;
+  approxHouseholds: number | string;
+  approxResidents: number | string;
   avgHouseholdSize: number;
   floodwaterSubsidence: string;
   floodRelatedHazards: string[];
   notableInfo: string[];
+  familyDetails?: FamilyDetail[];
   alternativeFocalPerson?: {
     firstName: string;
     lastName: string;
@@ -354,12 +408,15 @@ export const updateNeighborhoodData = async (
     console.log('📝 [neighborhood-service] approxHouseholds type:', typeof params.approxHouseholds, 'value:', params.approxHouseholds);
     console.log('📝 [neighborhood-service] approxResidents type:', typeof params.approxResidents, 'value:', params.approxResidents);
 
+    const normalizedHazards = normalizeHazardList(params.floodRelatedHazards);
+
     const requestBody: any = {
       noOfHouseholds: params.approxHouseholds,
       noOfResidents: params.approxResidents,
       floodSubsideHours: params.floodwaterSubsidence,
-      hazards: params.floodRelatedHazards,
+      hazards: normalizedHazards,
       otherInformation: params.notableInfo.join('; '),
+      familyDetails: params.familyDetails ?? [],
     };
 
     // Include alternative focal person fields if all required fields are provided and non-empty

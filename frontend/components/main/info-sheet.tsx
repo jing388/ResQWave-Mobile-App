@@ -5,6 +5,7 @@ import { Text, View, TouchableOpacity, Share, Alert, Linking } from 'react-nativ
 import * as Clipboard from 'expo-clipboard';
 import { MarkerData } from '@/types/neighborhood';
 import { formatDate } from '@/utils/formatters';
+import { buildGoogleMapsLink } from '@/utils/map-links';
 import { colors } from "@/constants/colors";
 
 interface InfoSheetProps {
@@ -91,8 +92,7 @@ export function InfoSheet({
 
   const generateShareLink = useCallback(() => {
     if (!markerData) return '';
-    const baseUrl = 'https://resqwave.app/location';
-    return `${baseUrl}?id=${markerData.neighborhoodID}&lat=${markerData.latitude}&lng=${markerData.longitude}`;
+    return buildGoogleMapsLink(markerData.latitude, markerData.longitude);
   }, [markerData]);
 
   const handleCopyLink = useCallback(async () => {
@@ -118,7 +118,7 @@ export function InfoSheet({
   const handleOpenCoordinates = useCallback(async () => {
     if (!markerData) return;
 
-    const mapsUrl = `https://maps.google.com/?q=${markerData.latitude},${markerData.longitude}`;
+    const mapsUrl = buildGoogleMapsLink(markerData.latitude, markerData.longitude);
 
     Alert.alert(
       'Open in Google Maps?',

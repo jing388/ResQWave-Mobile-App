@@ -28,9 +28,73 @@ export const hazardKeyToLabelMap: Record<string, string> = {
   "electrical-wires": "Electrical wires or exposed cables (Mga kable o wire na nakalantad)",
 };
 
+export const hazardKeys = Object.keys(hazardKeyToLabelMap);
+
+const hazardAliases: Record<string, string> = {
+  'strong water current': 'strong-water-current',
+  'risk of landslide or erosion': 'risk-landslide',
+  'drainage overflow or canal blockage': 'drainage-overflow',
+  'drainage overflow / canal blockage': 'drainage-overflow',
+  'roads became impassable': 'roads-impassable',
+  'roads become impassable': 'roads-impassable',
+  'electrical wires or exposed cables': 'electrical-wires',
+};
+
+const simplifyHazardText = (value: string): string => {
+  return value
+    .toLowerCase()
+    .replace(/\s*\(.*?\)\s*/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+export const normalizeHazardKey = (value: string): string => {
+  const raw = value?.trim();
+  if (!raw) return '';
+
+  if (hazardKeyToLabelMap[raw]) {
+    return raw;
+  }
+
+  const labelEntry = Object.entries(hazardKeyToLabelMap).find(
+    ([, label]) => label === raw,
+  );
+  if (labelEntry) {
+    return labelEntry[0];
+  }
+
+  const simplified = simplifyHazardText(raw);
+  if (hazardAliases[simplified]) {
+    return hazardAliases[simplified];
+  }
+
+  const slug = raw
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  if (hazardKeyToLabelMap[slug]) {
+    return slug;
+  }
+
+  const deSlugged = slug.replace(/-/g, ' ');
+  if (hazardAliases[deSlugged]) {
+    return hazardAliases[deSlugged];
+  }
+
+  return raw;
+};
+
+export const normalizeHazardList = (values: string[]): string[] => {
+  return Array.from(
+    new Set(values.map((value) => normalizeHazardKey(value)).filter(Boolean)),
+  );
+};
+
 // Function to get the proper label for a hazard key
 export const getHazardLabel = (hazardKey: string): string => {
-  return hazardKeyToLabelMap[hazardKey] || hazardKey;
+  const normalizedKey = normalizeHazardKey(hazardKey);
+  return hazardKeyToLabelMap[normalizedKey] || hazardKey;
 };
 
 // Dropdown options - can be fetched from backend config

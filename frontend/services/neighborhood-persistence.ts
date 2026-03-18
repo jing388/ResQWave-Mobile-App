@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { FamilyDetail } from '@/types/neighborhood';
 
 const LAST_SELECTED_NEIGHBORHOOD_KEY = 'last_selected_neighborhood_id';
 
@@ -42,18 +43,15 @@ export const clearLastSelectedNeighborhood = async (): Promise<void> => {
 };
 
 // ────────────────────────────────────────────────────────────────────
-// Family Details Mock Persistence
+// Family Details Local Fallback Persistence
 // ────────────────────────────────────────────────────────────────────
 
 const FAMILY_DETAILS_KEY_PREFIX = 'neighborhood_family_details_';
 
-export interface PersistedFamilyDetail {
-  familyName: string;
-  members: string[];
-}
+export type PersistedFamilyDetail = FamilyDetail;
 
 /**
- * Save family details to AsyncStorage (mock persistence for demonstration)
+ * Save family details to AsyncStorage as local fallback cache.
  * Data structure matches backend expectation: { familyName: string, members: string[] }[]
  */
 export const saveFamilyDetails = async (
@@ -62,17 +60,17 @@ export const saveFamilyDetails = async (
 ): Promise<void> => {
   try {
     const key = `${FAMILY_DETAILS_KEY_PREFIX}${neighborhoodId}`;
-    console.log('💾 [mock-persistence] Saving family details for:', neighborhoodId);
-    console.log('💾 [mock-persistence] Data:', JSON.stringify(families, null, 2));
+    console.log('💾 [family-cache] Saving family details for:', neighborhoodId);
+    console.log('💾 [family-cache] Data:', JSON.stringify(families, null, 2));
     await AsyncStorage.setItem(key, JSON.stringify(families));
-    console.log('✅ [mock-persistence] Successfully saved family details');
+    console.log('✅ [family-cache] Successfully saved family details');
   } catch (error) {
-    console.error('❌ [mock-persistence] Failed to save family details:', error);
+    console.error('❌ [family-cache] Failed to save family details:', error);
   }
 };
 
 /**
- * Load family details from AsyncStorage (mock persistence)
+ * Load family details from AsyncStorage local fallback cache.
  */
 export const loadFamilyDetails = async (
   neighborhoodId: string,
@@ -82,13 +80,13 @@ export const loadFamilyDetails = async (
     const data = await AsyncStorage.getItem(key);
     if (data) {
       const parsed = JSON.parse(data);
-      console.log('📂 [mock-persistence] Loaded family details:', parsed);
+      console.log('📂 [family-cache] Loaded family details:', parsed);
       return parsed;
     }
-    console.log('📂 [mock-persistence] No family details found');
+    console.log('📂 [family-cache] No family details found');
     return [];
   } catch (error) {
-    console.error('❌ [mock-persistence] Failed to load family details:', error);
+    console.error('❌ [family-cache] Failed to load family details:', error);
     return [];
   }
 };
@@ -100,8 +98,8 @@ export const clearFamilyDetails = async (neighborhoodId: string): Promise<void> 
   try {
     const key = `${FAMILY_DETAILS_KEY_PREFIX}${neighborhoodId}`;
     await AsyncStorage.removeItem(key);
-    console.log('🗑️ [mock-persistence] Cleared family details for:', neighborhoodId);
+    console.log('🗑️ [family-cache] Cleared family details for:', neighborhoodId);
   } catch (error) {
-    console.error('❌ [mock-persistence] Failed to clear family details:', error);
+    console.error('❌ [family-cache] Failed to clear family details:', error);
   }
 };

@@ -4,6 +4,7 @@ import { LayersButton } from '@/components/main/layers-button';
 import MapStyleSheet, { MapStyle } from '@/components/main/map-style-sheet';
 import { ChatbotButton } from '@/components/main/chatbot-button';
 import { LocationButton } from '@/components/main/your-location-button';
+import { AuthLoadingOverlay } from '@/components/ui/auth-loading-overlay';
 import { Avatar } from '@/components/ui/avatar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SearchField } from '@/components/ui/location-search-field';
@@ -21,7 +22,6 @@ import * as Location from 'expo-location';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Dimensions,
   PermissionsAndroid,
   Platform,
@@ -414,12 +414,10 @@ export default function HomeScreen() {
           translucent
         />
 
-        {/* Loading Overlay */}
-        {isLoading && (
-          <View className="absolute inset-0 z-50 bg-black/50 items-center justify-center">
-            <ActivityIndicator size="large" color="#34D399" />
-          </View>
-        )}
+        <AuthLoadingOverlay
+          visible={isLoading}
+          message="Loading map resources..."
+        />
 
         {/* Map */}
         <MapView
