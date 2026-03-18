@@ -38,6 +38,8 @@ import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-g
 import Animated, { cancelAnimation, useSharedValue, useAnimatedStyle, withTiming, runOnJS, Easing } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getProfile, updateProfilePicture, UserProfile, prepareProfileWithLocalImage } from '@/services/user-service';
+import { logService } from '@/services/log-service';
+import { formatTimeAgo } from '@/utils/time-formatter';
 
 const TOKEN_KEY = '@auth_token';
 const MIN_ZOOM = 1;
@@ -60,6 +62,7 @@ export default function ProfileScreen() {
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [signOutPercent, setSignOutPercent] = useState<number | undefined>(undefined);
   const [isClosing, setIsClosing] = useState(false);
+  const [lastActionDate, setLastActionDate] = useState<string | null>(null);
   const signOutProgress = useSharedValue(1);
   const signOutButtonScale = useSharedValue(1);
   const signOutButtonOpacity = useSharedValue(1);
@@ -147,6 +150,15 @@ export default function ProfileScreen() {
       // Prepare profile with local image caching
       const profileWithImage = await prepareProfileWithLocalImage(profile, effectiveToken);
       setUserData(profileWithImage);
+
+      // Fetch last action date for logs display
+      try {
+        const lastAction = await logService.getLastActionDate();
+        setLastActionDate(lastAction);
+      } catch (logError) {
+        console.warn('Could not fetch last action date:', logError);
+        setLastActionDate(null);
+      }
 
       console.log('✅ Profile loaded with image:', profileWithImage.photo?.substring(0, 50));
     } catch (error) {
@@ -602,7 +614,7 @@ export default function ProfileScreen() {
                         Password
                       </Text>
                       <Text className="text-gray-400 text-xs mt-1 font-geist-regular">
-                        Last changed: {userData?.lastPasswordChange || 'Unknown'}
+                        Last changed: {formatTimeAgo(userData?.lastPasswordChange)}
                       </Text>
                     </View>
                     <ChevronRight size={20} color="#9CA3AF" />
@@ -623,7 +635,7 @@ export default function ProfileScreen() {
                         Logs
                       </Text>
                       <Text className="text-gray-400 text-xs mt-1 font-geist-regular">
-                        Last action: {userData?.lastPasswordChange || 'Unknown'}
+                        Last action: {formatTimeAgo(lastActionDate)}
                       </Text>
                     </View>
                     <ChevronRight size={20} color="#9CA3AF" />

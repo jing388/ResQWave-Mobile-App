@@ -36,15 +36,15 @@ class LogService {
     try {
       console.log('📊 [LogService] Fetching own logs from: /logs/own');
       console.log('📊 [LogService] Making API call...');
-      
+
       const logs = await apiFetch<LogsResponse>('/logs/own');
-      
+
       console.log('✅ [LogService] Own logs fetched successfully:', {
         total: logs.total,
         daysCount: logs.days.length,
         lastUpdated: logs.lastUpdated,
       });
-      
+
       if (logs.days.length > 0) {
         console.log('📋 [LogService] Sample of first day:', {
           date: logs.days[0].date,
@@ -54,7 +54,7 @@ class LogService {
       } else {
         console.log('⚠️ [LogService] No days returned in response');
       }
-      
+
       return logs;
     } catch (error: any) {
       console.error('❌ [LogService] Error fetching own logs:', {
@@ -63,6 +63,28 @@ class LogService {
         stack: error.stack,
       });
       throw error;
+    }
+  }
+
+  /**
+   * Get the timestamp of the most recent log action
+   * Returns null if no logs exist
+   */
+  async getLastActionDate(): Promise<string | null> {
+    try {
+      const logs = await this.getOwnLogs();
+      if (logs.days.length === 0) return null;
+
+      // Days are sorted by most recent first; get the createdAt from the first action
+      const firstDay = logs.days[0];
+      if (firstDay.actions.length > 0) {
+        return firstDay.actions[0].createdAt;
+      }
+
+      return null;
+    } catch (error: any) {
+      console.error('❌ [LogService] Error fetching last action date:', error.message);
+      return null;
     }
   }
 }
