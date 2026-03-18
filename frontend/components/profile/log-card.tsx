@@ -9,17 +9,18 @@ export interface LogChange {
 
 interface LogCardProps {
   userName: string;
+  message?: string;
   time: string;
   changes: LogChange[];
 }
 
-export function LogCard({ userName, time, changes }: LogCardProps) {
+export function LogCard({ userName, message, time, changes }: LogCardProps) {
   return (
     <View className="bg-gray-800 rounded-xl p-4 mb-3 border border-gray-700">
       {/* Header */}
       <View className="flex-row items-center justify-between mb-3">
         <Text className="text-gray-50 text-base font-geist-medium flex-1">
-          {userName} updated neighborhood information.
+          {userName} {message || 'updated neighborhood information'}.
         </Text>
         <Text className="text-gray-400 text-sm font-geist-regular ml-2">
           {time}

@@ -1,4 +1,4 @@
-import { LogCard, LogChange } from '@/components/profile/log-card';
+import { LogCard } from '@/components/profile/log-card';
 import { Dropdown } from '@/components/ui/dropdown';
 import { AuthLoadingOverlay } from '@/components/ui/auth-loading-overlay';
 import { SearchField } from '@/components/ui/search-field';
@@ -16,19 +16,7 @@ import {
 } from 'react-native';
 import Collapsible from 'react-native-collapsible';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { logService, DailyLog, LogAction } from '@/services/log-service';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-interface LogEntry {
-  id: string;
-  userName: string;
-  time: string;
-  changes: LogChange[];
-}
-
-interface DailyLogs {
-  [date: string]: LogEntry[];
-}
+import { logService, DailyLog } from '@/services/log-service';
 
 export default function LogsScreen() {
   const insets = useSafeAreaInsets();
@@ -56,32 +44,9 @@ export default function LogsScreen() {
       try {
         setIsLoading(true);
         setError(null);
-        
-        // Debug: Check if user is authenticated
-        const token = await AsyncStorage.getItem('@auth_token');
-        const user = await AsyncStorage.getItem('@auth_user');
-        console.log('🔐 [LogsScreen] Auth status:', {
-          hasToken: !!token,
-          tokenPreview: token ? token.substring(0, 20) + '...' : 'none',
-          user: user ? JSON.parse(user) : null,
-        });
-        
-        console.log('🔄 Fetching logs from API...');
         const response = await logService.getOwnLogs();
-        console.log('✅ Logs fetched successfully:', {
-          totalEntries: response.total,
-          totalDays: response.days.length,
-          lastUpdated: response.lastUpdated,
-          days: response.days.map(d => ({ date: d.date, count: d.count })),
-        });
         setLogsData(response.days);
       } catch (err: any) {
-        console.error('❌ Failed to fetch logs:', err);
-        console.error('Error details:', {
-          message: err.message,
-          name: err.name,
-          stack: err.stack,
-        });
         setError(err.message || 'Failed to load logs. Please try again.');
       } finally {
         setIsLoading(false);
@@ -110,15 +75,15 @@ export default function LogsScreen() {
   const generateYearOptions = () => {
     const currentYear = new Date().getFullYear();
     const years = [];
-    
+
     // Add current year
     years.push({ label: String(currentYear), value: String(currentYear) });
-    
+
     // Add past years (up to 5 years back)
     for (let i = 1; i <= 5; i++) {
       years.push({ label: String(currentYear - i), value: String(currentYear - i) });
     }
-    
+
     return years;
   };
 
@@ -156,24 +121,51 @@ export default function LogsScreen() {
     return dateString; // Backend already returns formatted date
   };
 
+  const monthNameToNumber: Record<string, string> = {
+    January: '01',
+    February: '02',
+    March: '03',
+    April: '04',
+    May: '05',
+    June: '06',
+    July: '07',
+    August: '08',
+    September: '09',
+    October: '10',
+    November: '11',
+    December: '12',
+  };
+
+  function extractMonthYearFromLabel(dateLabel: string): {
+    month: string | null;
+    year: string | null;
+  } {
+    // Expected format from backend: "February 2, 2026" (en-PH, month long)
+    const parts = String(dateLabel || '').trim().split(/\s+/);
+    if (parts.length >= 3) {
+      const monthName = parts[0];
+      const year = parts[2];
+      const month = monthNameToNumber[monthName] ?? null;
+      return { month, year: year || null };
+    }
+
+    // Fallback: try Date parsing (may fail on Hermes)
+    const parsed = new Date(dateLabel);
+    if (Number.isNaN(parsed.getTime())) {
+      return { month: null, year: null };
+    }
+    return {
+      month: String(parsed.getMonth() + 1).padStart(2, '0'),
+      year: String(parsed.getFullYear()),
+    };
+  }
+
   // Filter logs based on selected month/year and search query
   const filteredLogs = logsData.filter((dayLog) => {
-    // Parse the date from the formatted date string (e.g., "February 2, 2026")
-    const dateObj = new Date(dayLog.date);
-    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-    const year = String(dateObj.getFullYear());
-
-    console.log('🔍 Filtering log:', {
-      date: dayLog.date,
-      parsedMonth: month,
-      parsedYear: year,
-      selectedMonth,
-      selectedYear,
-      matches: year === selectedYear && month === selectedMonth,
-    });
+    const { month, year } = extractMonthYearFromLabel(dayLog.date);
 
     // Filter by selected month and year
-    if (year !== selectedYear || month !== selectedMonth) {
+    if (!month || !year || year !== selectedYear || month !== selectedMonth) {
       return false;
     }
 
@@ -188,14 +180,6 @@ export default function LogsScreen() {
     }
 
     return true;
-  });
-
-  console.log('📊 Filter results:', {
-    totalLogs: logsData.length,
-    filteredCount: filteredLogs.length,
-    selectedMonth,
-    selectedYear,
-    searchQuery,
   });
 
   return (
@@ -282,11 +266,6 @@ export default function LogsScreen() {
                   }}
                   className="bg-blue-500 px-6 py-3 rounded-lg"
                 >
-
-              <AuthLoadingOverlay
-                visible={isLoading}
-                message="Loading logs..."
-              />
                   <Text className="text-white font-geist-medium">Retry</Text>
                 </TouchableOpacity>
               </View>
@@ -325,12 +304,12 @@ export default function LogsScreen() {
                 // Filter actions by search query
                 const filteredActions = searchQuery.trim()
                   ? dayLog.actions.filter((action) =>
-                      action.fields.some((field) =>
-                        field.field
-                          .toLowerCase()
-                          .includes(searchQuery.toLowerCase()),
-                      ),
-                    )
+                    action.fields.some((field) =>
+                      field.field
+                        .toLowerCase()
+                        .includes(searchQuery.toLowerCase()),
+                    ),
+                  )
                   : dayLog.actions;
 
                 if (filteredActions.length === 0) return null;
@@ -367,6 +346,7 @@ export default function LogsScreen() {
                           <LogCard
                             key={`${action.createdAt}-${index}`}
                             userName={action.actorName}
+                            message={action.message}
                             time={action.time}
                             changes={action.fields.map(field => ({
                               field: field.field,
@@ -382,6 +362,8 @@ export default function LogsScreen() {
               })
             )}
           </ScrollView>
+
+          <AuthLoadingOverlay visible={isLoading} message="Loading logs..." />
         </View>
       </View>
     </View>
